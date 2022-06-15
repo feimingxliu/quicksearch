@@ -3,7 +3,7 @@ package test
 import (
 	"fmt"
 	"github.com/feimingxliu/bolt"
-	"github.com/feimingxliu/quicksearch/pkg/util"
+	"github.com/feimingxliu/quicksearch/pkg/util/random"
 	"log"
 	"os"
 	"testing"
@@ -22,7 +22,7 @@ func TestBolt(t *testing.T) {
 	}
 	log.Println("++++++ A transaction started ++++++")
 	// Use the transaction...
-	bucketName := util.RandomString(8)
+	bucketName := random.RandomString(8)
 	bucket, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 	log.Printf("++++++ Bucket '%s' created ++++++\n", bucketName)
 	if err != nil {
@@ -30,8 +30,8 @@ func TestBolt(t *testing.T) {
 	}
 	var key, value string
 	for i := 0; i < 10000; i++ {
-		key = util.RandomString(4)
-		value = util.RandomString(10)
+		key = random.RandomString(4)
+		value = random.RandomString(10)
 		err = bucket.Put([]byte(key), []byte(value))
 		if err != nil {
 			log.Fatalln(err)

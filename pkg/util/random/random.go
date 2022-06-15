@@ -1,4 +1,4 @@
-package util
+package random
 
 import (
 	"crypto/rand"
@@ -16,6 +16,7 @@ const (
 
 var buf = make([]byte, 8)
 
+//RandomN generate uint64 random number.
 func RandomN(n int) uint64 {
 	if n <= 0 {
 		log.Fatalln("range of random number <= 0!")
@@ -27,6 +28,7 @@ func RandomN(n int) uint64 {
 
 var stringBuilder = &strings.Builder{}
 
+//RandomString generate random string with length.
 func RandomString(length int) string {
 	if length <= 0 {
 		log.Fatalln("length of random string <= 0!")
@@ -39,6 +41,7 @@ func RandomString(length int) string {
 	return s
 }
 
+//RandomChar generate a random char base on characters above.
 func RandomChar() byte {
 	return characters[RandomN(len(characters))]
 }
