@@ -1,0 +1,6 @@
+github.com/feimingxliu/bolt v1.3.2 h1:KITHFYv56JJRacp4AJHaXglB0QNpj65it/V8pkvikg4=
+github.com/feimingxliu/bolt v1.3.2/go.mod h1:rnNoSyIqOPbLuTINJ9X8jK4+cd1tDQmUENqeeswYVt4=
+github.com/yanyiwu/gojieba v1.1.2 h1:BMwKCwg3G+Nw/Ctqzm/gNgN/6Ljf0Y4f7ddKlzTA+TM=
+github.com/yanyiwu/gojieba v1.1.2/go.mod h1:54wkP7sMJ6bklf7yPl6F+JG71dzVUU1WigZbR47nGdY=
+golang.org/x/sys v0.0.0-20220610221304-9f5ed59c137d h1:Zu/JngovGLVi6t2J3nmAf3AoTDwuzw85YZ3b9o4yU7s=
+golang.org/x/sys v0.0.0-20220610221304-9f5ed59c137d/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
