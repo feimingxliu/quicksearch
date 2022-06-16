@@ -2,8 +2,8 @@ package test
 
 import (
 	"fmt"
-	"github.com/feimingxliu/bolt"
 	"github.com/feimingxliu/quicksearch/pkg/util/random"
+	bolt "go.etcd.io/bbolt"
 	"log"
 	"os"
 	"testing"
@@ -12,13 +12,13 @@ import (
 func TestBolt(t *testing.T) {
 	db, err := bolt.Open("testdata/bolt.db", 0600, nil)
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
 	db.Info()
 	// Start a writable transaction.
 	tx, err := db.Begin(true)
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
 	log.Println("++++++ A transaction started ++++++")
 	// Use the transaction...
@@ -26,7 +26,7 @@ func TestBolt(t *testing.T) {
 	bucket, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 	log.Printf("++++++ Bucket '%s' created ++++++\n", bucketName)
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
 	var key, value string
 	for i := 0; i < 10000; i++ {
@@ -34,13 +34,13 @@ func TestBolt(t *testing.T) {
 		value = random.RandomString(10)
 		err = bucket.Put([]byte(key), []byte(value))
 		if err != nil {
-			log.Fatalln(err)
+			t.Fatal(err)
 		}
 		log.Printf("PUT key: %s, value: %s \n", key, value)
 	}
 	// Commit the transaction and check for error.
 	if err = tx.Commit(); err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
 	log.Println("++++++ The transaction committed ++++++")
 
@@ -57,12 +57,12 @@ func TestBolt(t *testing.T) {
 		return nil
 	})
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
 	//close the DB
 	err = db.Close()
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
 	wd, _ := os.Getwd()
 	fmt.Println("work dir: ", wd)

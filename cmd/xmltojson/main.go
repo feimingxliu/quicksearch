@@ -2,16 +2,22 @@ package main
 
 import (
 	"encoding/xml"
+	"flag"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/feimingxliu/quicksearch/pkg/util/uuid"
 	"log"
 	"os"
 )
 
-const (
+var (
 	inputXml   = "test/testdata/zhwiki-20220601-abstract.xml"
 	outputJson = "test/testdata/zhwiki-20220601-abstract.json"
 )
+
+func init() {
+	inputXml = *flag.String("input", inputXml, "the input xml file")
+	outputJson = *flag.String("output", outputJson, "the output json file")
+}
 
 func main() {
 	log.Println("loading xml source file ......")
