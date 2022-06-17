@@ -2,9 +2,18 @@ package tokenizer
 
 import "github.com/feimingxliu/quicksearch/pkg/tokenizer/jieba"
 
-func NewTokenizer(typ string) Tokenizer {
+type TokenizeType int
+
+//types of tokenizer
+const (
+	Jieba TokenizeType = iota
+
+	Default = Jieba
+)
+
+func NewTokenizer(typ TokenizeType) Tokenizer {
 	switch typ {
-	case "jieba":
+	case Jieba:
 		return jieba.NewJieBa()
 	default:
 		return jieba.NewJieBa()

@@ -5,26 +5,26 @@ import (
 	"github.com/yanyiwu/gojieba"
 )
 
-func NewJieBa() *Jieba {
-	return &Jieba{jb: gojieba.NewJieba()}
+func NewJieBa() *jieba {
+	return &jieba{jb: gojieba.NewJieba()}
 }
 
-type Jieba struct {
+type jieba struct {
 	jb *gojieba.Jieba
 }
 
 //Tokenize return all tokens of s.
-func (j *Jieba) Tokenize(s string) []string {
+func (j *jieba) Tokenize(s string) []string {
 	return j.jb.CutForSearch(s, true)
 }
 
 //Keywords return s's keywords.
-func (j *Jieba) Keywords(s string, topK int) []string {
+func (j *jieba) Keywords(s string, topK int) []string {
 	return j.jb.Extract(s, topK)
 }
 
 //KeywordsWeight return s's keywords with weight.
-func (j *Jieba) KeywordsWeight(s string, topK int) []tokenizer.WordWeight {
+func (j *jieba) KeywordsWeight(s string, topK int) []tokenizer.WordWeight {
 	ww := j.jb.ExtractWithWeight(s, topK)
 	w := make([]tokenizer.WordWeight, len(ww))
 	for i := range ww {
@@ -37,6 +37,6 @@ func (j *Jieba) KeywordsWeight(s string, topK int) []tokenizer.WordWeight {
 }
 
 //Close release the resources.
-func (j *Jieba) Close() {
+func (j *jieba) Close() {
 	j.jb.Free()
 }
