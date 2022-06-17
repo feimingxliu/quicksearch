@@ -17,6 +17,7 @@ var (
 func init() {
 	inputXml = *flag.String("input", inputXml, "the input xml file")
 	outputJson = *flag.String("output", outputJson, "the output json file")
+	flag.Parse()
 }
 
 func main() {
