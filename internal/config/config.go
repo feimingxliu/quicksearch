@@ -15,5 +15,6 @@ type Config struct {
 }
 
 type Storage struct {
+	Type    string `mapstructure:"type" json:"type" yaml:"type"`
 	DataDir string `mapstructure:"data-dir" json:"data_dir" yaml:"data-dir"`
 }

@@ -1,7 +1,5 @@
 package tokenizer
 
-import "github.com/feimingxliu/quicksearch/pkg/tokenizer/jieba"
-
 type TokenizeType int
 
 //types of tokenizer
@@ -14,9 +12,9 @@ const (
 func NewTokenizer(typ TokenizeType) Tokenizer {
 	switch typ {
 	case Jieba:
-		return jieba.NewJieBa()
+		return newJieBa()
 	default:
-		return jieba.NewJieBa()
+		return newJieBa()
 	}
 }
 

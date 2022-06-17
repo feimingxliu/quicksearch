@@ -1,11 +1,10 @@
-package jieba
+package tokenizer
 
 import (
-	"github.com/feimingxliu/quicksearch/pkg/tokenizer"
 	"github.com/yanyiwu/gojieba"
 )
 
-func NewJieBa() *jieba {
+func newJieBa() *jieba {
 	return &jieba{jb: gojieba.NewJieba()}
 }
 
@@ -24,11 +23,11 @@ func (j *jieba) Keywords(s string, topK int) []string {
 }
 
 //KeywordsWeight return s's keywords with weight.
-func (j *jieba) KeywordsWeight(s string, topK int) []tokenizer.WordWeight {
+func (j *jieba) KeywordsWeight(s string, topK int) []WordWeight {
 	ww := j.jb.ExtractWithWeight(s, topK)
-	w := make([]tokenizer.WordWeight, len(ww))
+	w := make([]WordWeight, len(ww))
 	for i := range ww {
-		w[i] = tokenizer.WordWeight{
+		w[i] = WordWeight{
 			Word:   ww[i].Word,
 			Weight: ww[i].Weight,
 		}

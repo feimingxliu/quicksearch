@@ -1,4 +1,4 @@
-package bolt
+package storager
 
 import (
 	"bytes"
@@ -9,18 +9,18 @@ import (
 	"path"
 )
 
-func NewBolt(dbPath string) *bolt {
+func newBolt(dbPath string) *bolt {
 	opt := &bbolt.Options{
 		Timeout:      0,
 		NoGrowSync:   false,
 		FreelistType: bbolt.FreelistArrayType,
 	}
 	if err := os.MkdirAll(path.Dir(dbPath), 0755); err != nil {
-		log.Fatalln("[NewBolt] os.MkdirAll: ", err)
+		log.Fatalln("[newBolt] os.MkdirAll: ", err)
 	}
 	db, err := bbolt.Open(dbPath, 0666, opt)
 	if err != nil {
-		log.Fatalln("[NewBolt] bbolt.Open: ", err)
+		log.Fatalln("[newBolt] bbolt.Open: ", err)
 	}
 	return &bolt{db}
 }
@@ -29,6 +29,14 @@ type bolt struct {
 	db *bbolt.DB
 }
 
+/*
+Index bucket name: /index
+	So set a index: bucket.Put("index_name", value)
+Doc bucket name: /index/index_name
+	So set a doc: bucket.Put("docID", value)
+*/
+
+//List lists all items in a bucket, so it can list indexes and docs.
 func (b *bolt) List(s string) ([][]byte, error) {
 	data := make([][]byte, 0)
 	bucket, _ := b.splitBucketAndKey(s)
@@ -95,12 +103,22 @@ func (b *bolt) Delete(key string) error {
 	})
 }
 
-func (b *bolt) DeleteAll(bucket string) error {
-	if bucket == "" {
+//DeleteAll deletes a bucket, it should just be used to delete a index.
+func (b *bolt) DeleteAll(docBucket string) error {
+	if docBucket == "" {
 		return nil
 	}
+	indexBucket, indexName := b.splitBucketAndKey(docBucket)
 	return b.db.Update(func(Tx *bbolt.Tx) error {
-		return Tx.DeleteBucket([]byte(bucket))
+		b := Tx.Bucket(indexBucket)
+		if b == nil {
+			return nil
+		}
+		err := b.Delete(indexName)
+		if err != nil {
+			return err
+		}
+		return Tx.DeleteBucket([]byte(docBucket))
 	})
 }
 
@@ -108,7 +126,7 @@ func (b *bolt) Close() error {
 	return b.db.Close()
 }
 
-// structure /index/index_name/doc_uid
+//  /index/index_name/doc_uid
 func (b *bolt) splitBucketAndKey(key string) ([]byte, []byte) {
 	if key == "" {
 		return nil, nil

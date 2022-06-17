@@ -1,2 +1,3 @@
 storage:
+  type: "bolt"
   data-dir: "data"
