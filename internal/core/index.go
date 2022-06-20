@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+//TODO: map one Index to one db instance.
+
 type Index struct {
 	Name        string       `json:"name"`
 	StorageType string       `json:"storage_type"`

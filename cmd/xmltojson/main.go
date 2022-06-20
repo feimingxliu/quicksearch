@@ -5,7 +5,9 @@ import (
 	"flag"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/feimingxliu/quicksearch/pkg/util/uuid"
+	"github.com/go-creed/sat"
 	"log"
+	"net/url"
 	"os"
 )
 
@@ -37,9 +39,14 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Println("Adding additional ID field ......")
+	log.Println("Adding additional ID field, convert url and 'cht to chs' ......")
+	dicter := sat.DefaultDict()
 	for i := range docs {
 		docs[i].ID = uuid.GetUUID()
+		docs[i].URL, _ = url.QueryUnescape(docs[i].URL)
+		docs[i].URL = dicter.Read(docs[i].URL)
+		docs[i].Title = dicter.Read(docs[i].Title)
+		docs[i].Text = dicter.Read(docs[i].Text)
 	}
 	log.Println("Creating json output file ......")
 	outputFile, err := os.OpenFile(outputJson, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)

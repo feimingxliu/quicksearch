@@ -6,6 +6,8 @@ import (
 	"github.com/feimingxliu/quicksearch/pkg/util/slices"
 )
 
+//TODO: map InvertedIndex to an individual db instance.
+
 var InvertedIndex inverted
 
 type inverted struct{}
