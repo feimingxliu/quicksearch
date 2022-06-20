@@ -1,3 +1,5 @@
 storage:
   type: "bolt"
   data-dir: "data"
+tokenizer:
+  type: "jieba"

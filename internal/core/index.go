@@ -1,8 +1,6 @@
 package core
 
 import (
-	"github.com/feimingxliu/quicksearch/internal/pkg/storager"
-	"github.com/feimingxliu/quicksearch/internal/pkg/tokenizer"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"sync"
 	"sync/atomic"
@@ -10,16 +8,21 @@ import (
 )
 
 type Index struct {
-	Name        string              `json:"name"`
-	StorageType string              `json:"storage_type"`
-	DocNum      uint64              `json:"doc_num"`
-	DocTimeMin  int64               `json:"doc_time_min"`
-	DocTimeMax  int64               `json:"doc_time_max"`
-	CreateAt    time.Time           `json:"create_at"`
-	UpdateAt    time.Time           `json:"update_at"`
-	tokenizer   tokenizer.Tokenizer `json:"-"`
-	storager    storager.Storager   `json:"-"`
-	lock        sync.RWMutex        `json:"-"`
+	Name        string       `json:"name"`
+	StorageType string       `json:"storage_type"`
+	DocNum      uint64       `json:"doc_num"`
+	DocTimeMin  int64        `json:"doc_time_min"`
+	DocTimeMax  int64        `json:"doc_time_max"`
+	CreateAt    time.Time    `json:"create_at"`
+	UpdateAt    time.Time    `json:"update_at"`
+	rwMutex     sync.RWMutex `json:"-"`
+}
+
+func NewIndex(name string) *Index {
+	return &Index{
+		Name:        name,
+		StorageType: db.Type(),
+	}
 }
 
 func ListIndexes() ([]*Index, error) {
@@ -40,7 +43,7 @@ func ListIndexes() ([]*Index, error) {
 }
 
 func GetIndex(name string) (*Index, error) {
-	b, err := db.Get(key(name))
+	b, err := db.Get(indexKey(name))
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +56,7 @@ func GetIndex(name string) (*Index, error) {
 }
 
 func DeleteIndex(name string) error {
-	return db.DeleteAll(key(name))
+	return db.DeleteAll(indexKey(name))
 }
 
 func (index *Index) SetTimestamp(t int64) {
@@ -72,13 +75,15 @@ func (index *Index) SetTimestamp(t int64) {
 }
 
 func (index *Index) UpdateMetadata() error {
+	index.rwMutex.RLock()
 	b, err := json.Marshal(index)
 	if err != nil {
 		return err
 	}
-	return db.Set(key(index.Name), b)
+	index.rwMutex.RUnlock()
+	return db.Set(indexKey(index.Name), b)
 }
 
-func key(name string) string {
-	return "/index/" + name
+func indexKey(indexName string) string {
+	return "/index/" + indexName
 }

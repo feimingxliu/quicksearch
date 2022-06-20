@@ -24,5 +24,6 @@ type Storager interface {
 	Set(string, []byte) error
 	Delete(string) error
 	DeleteAll(string) error
+	Type() string
 	Close() error
 }

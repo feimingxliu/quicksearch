@@ -29,7 +29,7 @@ func NewEncoder(writer io.Writer) *jsoniter.Encoder {
 
 //Unmarshal same as std json.Unmarshal, but more efficient.
 func Unmarshal(data []byte, v interface{}) error {
-	return j.Unmarshal([]byte(data), v)
+	return j.Unmarshal(data, v)
 }
 
 //NewDecoder same as std json.NewDecoder.

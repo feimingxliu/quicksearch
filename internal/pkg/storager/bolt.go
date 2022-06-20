@@ -122,11 +122,18 @@ func (b *bolt) DeleteAll(docBucket string) error {
 	})
 }
 
+func (b *bolt) Type() string {
+	return "bolt"
+}
+
 func (b *bolt) Close() error {
 	return b.db.Close()
 }
 
-//  /index/index_name/doc_uid
+//  bucket: bucket_name/key => value
+//  doc: /index/index_name/doc_uid => document
+//  index meta: /index/index_name => index metadata
+//  inverted index: /inverted/keyword => document ID
 func (b *bolt) splitBucketAndKey(key string) ([]byte, []byte) {
 	if key == "" {
 		return nil, nil
