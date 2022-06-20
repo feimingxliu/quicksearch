@@ -1,10 +1,7 @@
 package core
 
 import (
-	"fmt"
-	"github.com/feimingxliu/quicksearch/pkg/util/json"
-	"github.com/feimingxliu/quicksearch/pkg/util/maps"
-	"strings"
+	"github.com/feimingxliu/quicksearch/pkg/util/uuid"
 	"time"
 )
 
@@ -18,53 +15,14 @@ type Document struct {
 	Source    map[string]interface{} `json:"_source"`
 }
 
-//TODO: support update document
-
-func (index *Index) IndexDocument(doc *Document) error {
-	if doc == nil {
-		return nil
+func NewDocument(source map[string]interface{}) *Document {
+	return &Document{
+		ID:        uuid.GetXID(),
+		Timestamp: time.Now(),
+		Source:    source,
 	}
-	b, err := json.Marshal(doc)
-	if err != nil {
-		return err
-	}
-	err = db.Set(docKey(doc.IndexName, doc.ID), b)
-	if err != nil {
-		return err
-	}
-	//update metadata.
-	index.SetTimestamp(doc.Timestamp.UnixNano())
-	index.rwMutex.Lock()
-	index.DocNum++
-	index.UpdateAt = time.Now()
-	index.rwMutex.Unlock()
-	//write to db.
-	if err = index.UpdateMetadata(); err != nil {
-		return err
-	}
-	//extract tokens and add or update inverted index.
-	flatDoc := maps.Flatten(doc.Source)
-	keywords := make(map[string]struct{})
-	for _, value := range flatDoc {
-		//this casts both string and number to string.
-		s := fmt.Sprint(value)
-		for _, token := range tokenizer.Tokenize(s) {
-			//filter the key char '/' and blank token.
-			if token = strings.Trim(token, "/"); len(token) == 0 {
-				continue
-			}
-			if _, ok := keywords[token]; !ok {
-				keywords[token] = struct{}{}
-			}
-		}
-	}
-	err = InvertedIndex.MapKeywordsDoc(keywords, doc.ID)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
-func docKey(indexName string, docID string) string {
-	return "/index/" + indexName + "/" + docID
+func (doc *Document) WithID(id string) {
+	doc.ID = id
 }

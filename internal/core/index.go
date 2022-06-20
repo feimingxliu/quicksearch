@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"sync"
 	"sync/atomic"
@@ -22,6 +23,8 @@ func NewIndex(name string) *Index {
 	return &Index{
 		Name:        name,
 		StorageType: db.Type(),
+		CreateAt:    time.Now(),
+		UpdateAt:    time.Now(),
 	}
 }
 
@@ -45,6 +48,9 @@ func ListIndexes() ([]*Index, error) {
 func GetIndex(name string) (*Index, error) {
 	b, err := db.Get(indexKey(name))
 	if err != nil {
+		if err == errors.ErrKeyNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
 	index := new(Index)

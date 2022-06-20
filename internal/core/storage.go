@@ -9,7 +9,7 @@ import (
 
 var db storager.Storager
 
-func init() {
+func initStorage() {
 	switch strings.ToLower(config.Global.Storage.Type) {
 	case "bolt":
 		db = storager.NewStorager(storager.Bolt, path.Join(config.Global.Storage.DataDir, "bolt.db"))

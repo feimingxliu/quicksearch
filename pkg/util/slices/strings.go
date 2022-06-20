@@ -20,3 +20,22 @@ func DistinctStr(arr []string) []string {
 	}
 	return distinctSlice
 }
+
+//FilterStr applies f to each element in arr.
+func FilterStr(arr []string, f func(string) string) []string {
+	fArr := make([]string, 0)
+	for i := range arr {
+		fArr = append(fArr, f(arr[i]))
+	}
+	return fArr
+}
+
+func RemoveEmptyStr(arr []string) []string {
+	a := make([]string, 0)
+	for i := range arr {
+		if len(arr[i]) > 0 {
+			a = append(a, arr[i])
+		}
+	}
+	return a
+}

@@ -118,6 +118,10 @@ func (b *bolt) DeleteAll(docBucket string) error {
 		if err != nil {
 			return err
 		}
+		bb := Tx.Bucket([]byte(docBucket))
+		if bb == nil {
+			return nil
+		}
 		return Tx.DeleteBucket([]byte(docBucket))
 	})
 }

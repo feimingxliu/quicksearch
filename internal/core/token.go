@@ -8,7 +8,7 @@ import (
 
 var tokenizer ptokenizer.Tokenizer
 
-func init() {
+func initTokenizer() {
 	switch strings.ToLower(config.Global.Tokenizer.Type) {
 	case "jieba":
 		tokenizer = ptokenizer.NewTokenizer(ptokenizer.Jieba)

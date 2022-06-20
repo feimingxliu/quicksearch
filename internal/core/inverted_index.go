@@ -10,32 +10,40 @@ var InvertedIndex inverted
 
 type inverted struct{}
 
-func (iv inverted) MapKeywordsDoc(keywords map[string]struct{}, docID string) error {
-	for keyword := range keywords {
-		bids, err := db.Get(invertedKey(keyword))
-		var ids []string
+type Pair struct {
+	Key string   `json:"keyword"`
+	Ids []string `json:"ids"`
+}
+
+func (iv inverted) MapKeywordsDoc(keywords []string, docID string) error {
+	for _, keyword := range keywords {
+		bpair, err := db.Get(invertedKey(keyword))
+		var pair Pair
 		if err != nil {
 			if err == errors.ErrKeyNotFound {
-				ids = make([]string, 1)
+				pair = Pair{
+					Key: keyword,
+					Ids: make([]string, 0, 1),
+				}
 			} else {
 				return err
 			}
 		}
-		if bids != nil {
-			err = json.Unmarshal(bids, &ids)
+		if bpair != nil {
+			err = json.Unmarshal(bpair, &pair)
 			if err != nil {
 				return err
 			}
 		}
-		if slices.ContainsStr(ids, docID) {
+		if slices.ContainsStr(pair.Ids, docID) {
 			continue
 		}
-		ids = append(ids, docID)
-		bids, err = json.Marshal(ids)
+		pair.Ids = append(pair.Ids, docID)
+		bpair, err = json.Marshal(pair)
 		if err != nil {
 			return err
 		}
-		err = db.Set(invertedKey(keyword), bids)
+		err = db.Set(invertedKey(keyword), bpair)
 		if err != nil {
 			return err
 		}
@@ -44,18 +52,37 @@ func (iv inverted) MapKeywordsDoc(keywords map[string]struct{}, docID string) er
 }
 
 func (iv inverted) GetIDsByKeyword(keyword string) ([]string, error) {
-	bids, err := db.Get(invertedKey(keyword))
-	var ids []string
+	bpair, err := db.Get(invertedKey(keyword))
+	if err != nil {
+		if err == errors.ErrKeyNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var pair Pair
+	err = json.Unmarshal(bpair, &pair)
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(bids, &ids)
-	if err != nil {
-		return nil, err
-	}
-	return ids, nil
+	return pair.Ids, nil
 }
 
 func invertedKey(keyword string) string {
 	return "/inverted/" + keyword
+}
+
+func (iv inverted) listAllKeywordIDs() ([]*Pair, error) {
+	b, err := db.List("/inverted/")
+	if err != nil {
+		return nil, err
+	}
+	pairs := make([]*Pair, 0, len(b))
+	for i := range b {
+		pair := new(Pair)
+		if err = json.Unmarshal(b[i], pair); err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, pair)
+	}
+	return pairs, nil
 }
