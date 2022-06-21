@@ -22,6 +22,7 @@ type Storager interface {
 	List(string) ([][]byte, error)
 	Get(string) ([]byte, error)
 	Set(string, []byte) error
+	Batch([]string, [][]byte) error
 	Delete(string) error
 	DeleteAll(string) error
 	Type() string

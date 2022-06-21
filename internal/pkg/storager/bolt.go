@@ -89,6 +89,26 @@ func (b *bolt) Set(key string, value []byte) error {
 	})
 }
 
+func (b *bolt) Batch(keys []string, values [][]byte) error {
+	if len(keys) != len(values) {
+		return errors.ErrKeyValueNotMatch
+	}
+	return b.db.Batch(func(tx *bbolt.Tx) error {
+		for i, key := range keys {
+			bucket, name := b.splitBucketAndKey(key)
+			b, err := tx.CreateBucketIfNotExists(bucket)
+			if err != nil {
+				return err
+			}
+			err = b.Put(name, values[i])
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func (b *bolt) Delete(key string) error {
 	if key == "" {
 		return errors.ErrEmptyKey

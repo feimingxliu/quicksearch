@@ -1,10 +1,12 @@
 package core
 
 import (
+	"fmt"
 	"github.com/feimingxliu/quicksearch/internal/config"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"sync"
 	"testing"
+	"time"
 )
 
 const indexName = "test"
@@ -71,6 +73,35 @@ func TestIndexDocument(t *testing.T) {
 		json.Print("index", index)
 		json.Print("doc", doc)
 	}
+	pairs, err := InvertedIndex.listAllKeywordIDs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	json.Print("inverted index", pairs)
+}
+
+func TestBulkDocument(t *testing.T) {
+	prepare(t)
+	index := NewIndex(indexName)
+	m := make(map[string]interface{})
+	_ = json.Unmarshal([]byte(raw), &m)
+	docs := make([]*Document, 1000, 1000)
+	for i := 0; i < 1000; i++ {
+		docs[i] = NewDocument(m)
+	}
+	var wg sync.WaitGroup
+	for k := 0; k < 10; k++ {
+		go func(k int) {
+			wg.Add(1)
+			if err := index.BulkDocuments(docs[k*100 : k*100+99]); err != nil {
+				fmt.Println(err)
+			}
+			wg.Done()
+		}(k)
+	}
+	wg.Wait()
+	//wait underlying db to execute batch.
+	time.Sleep(10 * time.Second)
 	pairs, err := InvertedIndex.listAllKeywordIDs()
 	if err != nil {
 		t.Fatal(err)

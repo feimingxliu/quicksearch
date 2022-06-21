@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/feimingxliu/quicksearch/internal/pkg/storager"
 	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"sync"
@@ -11,14 +12,15 @@ import (
 //TODO: map one Index to one db instance.
 
 type Index struct {
-	Name        string       `json:"name"`
-	StorageType string       `json:"storage_type"`
-	DocNum      uint64       `json:"doc_num"`
-	DocTimeMin  int64        `json:"doc_time_min"`
-	DocTimeMax  int64        `json:"doc_time_max"`
-	CreateAt    time.Time    `json:"create_at"`
-	UpdateAt    time.Time    `json:"update_at"`
-	rwMutex     sync.RWMutex `json:"-"`
+	Name        string    `json:"name"`
+	StorageType string    `json:"storage_type"`
+	DocNum      uint64    `json:"doc_num"`
+	DocTimeMin  int64     `json:"doc_time_min"`
+	DocTimeMax  int64     `json:"doc_time_max"`
+	CreateAt    time.Time `json:"create_at"`
+	UpdateAt    time.Time `json:"update_at"`
+	rwMutex     sync.RWMutex
+	store       storager.Storager
 }
 
 func NewIndex(name string) *Index {

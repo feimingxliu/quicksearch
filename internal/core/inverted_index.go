@@ -18,7 +18,9 @@ type Pair struct {
 }
 
 func (iv inverted) MapKeywordsDoc(keywords []string, docID string) error {
-	for _, keyword := range keywords {
+	keys := make([]string, len(keywords), len(keywords))
+	values := make([][]byte, len(keywords), len(keywords))
+	for i, keyword := range keywords {
 		bpair, err := db.Get(invertedKey(keyword))
 		var pair Pair
 		if err != nil {
@@ -45,10 +47,12 @@ func (iv inverted) MapKeywordsDoc(keywords []string, docID string) error {
 		if err != nil {
 			return err
 		}
-		err = db.Set(invertedKey(keyword), bpair)
-		if err != nil {
-			return err
-		}
+		keys[i] = invertedKey(keyword)
+		values[i] = bpair
+	}
+	err := db.Batch(keys, values)
+	if err != nil {
+		return err
 	}
 	return nil
 }
