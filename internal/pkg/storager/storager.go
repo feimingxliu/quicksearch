@@ -19,12 +19,12 @@ func NewStorager(st StorageType, dbPath string) Storager {
 }
 
 type Storager interface {
-	List(string) ([][]byte, error)
+	List() ([][]byte, error)
 	Get(string) ([]byte, error)
 	Set(string, []byte) error
 	Batch([]string, [][]byte) error
 	Delete(string) error
-	DeleteAll(string) error
+	DeleteAll() error
 	Type() string
 	Close() error
 }

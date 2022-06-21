@@ -19,4 +19,4 @@
 /test/testdata/*.json
 /bin/
 /data/
-/cmd/zinc
+/cmd/client

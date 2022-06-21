@@ -15,6 +15,9 @@ func (index *Index) IndexDocument(doc *Document) error {
 	if doc == nil {
 		return nil
 	}
+	if err := index.Open(); err != nil {
+		return err
+	}
 	doc.IndexName = index.Name
 	doc.Index = index
 	//update index metadata.
@@ -30,13 +33,12 @@ func (index *Index) IndexDocument(doc *Document) error {
 	//extract tokens and add or update inverted index.
 	flatDoc := maps.Flatten(doc.Source)
 	keywords := make(map[string]struct{})
-	for field, value := range flatDoc {
-		doc.Fields = append(doc.Fields, field)
+	for _, value := range flatDoc {
 		//this casts both string and number to string.
 		s := fmt.Sprint(value)
 		//filter the key char '/' and blank token.
-		kws := slices.RemoveEmptyStr(slices.FilterStr(tokenizer.Tokenize(s), func(token string) string {
-			return strings.Trim(strings.TrimSpace(token), "/")
+		kws := slices.RemoveEmptyStr(slices.FilterStr(index.tokenizer.Tokenize(s), func(token string) string {
+			return strings.TrimSpace(token)
 		}))
 		for _, token := range kws {
 			if _, ok := keywords[token]; !ok {
@@ -44,10 +46,11 @@ func (index *Index) IndexDocument(doc *Document) error {
 			}
 		}
 	}
+	doc.KeyWords = make([]string, 0)
 	for kw := range keywords {
 		doc.KeyWords = append(doc.KeyWords, kw)
 	}
-	err := InvertedIndex.MapKeywordsDoc(doc.KeyWords, doc.ID)
+	err := index.MapKeywordsDoc(doc.KeyWords, doc.ID)
 	if err != nil {
 		return err
 	}
@@ -56,7 +59,7 @@ func (index *Index) IndexDocument(doc *Document) error {
 	if err != nil {
 		return err
 	}
-	err = db.Set(docKey(doc.IndexName, doc.ID), b)
+	err = index.store.Set(doc.ID, b)
 	if err != nil {
 		return err
 	}
@@ -64,6 +67,12 @@ func (index *Index) IndexDocument(doc *Document) error {
 }
 
 func (index *Index) BulkDocuments(docs []*Document) error {
+	if len(docs) == 0 {
+		return nil
+	}
+	if err := index.Open(); err != nil {
+		return err
+	}
 	keys := make([]string, len(docs), len(docs))
 	values := make([][]byte, len(docs), len(docs))
 	for i, doc := range docs {
@@ -78,13 +87,12 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 		//extract tokens and add or update inverted index.
 		flatDoc := maps.Flatten(doc.Source)
 		keywords := make(map[string]struct{})
-		for field, value := range flatDoc {
-			doc.Fields = append(doc.Fields, field)
+		for _, value := range flatDoc {
 			//this casts both string and number to string.
 			s := fmt.Sprint(value)
 			//filter the key char '/' and blank token.
-			kws := slices.RemoveEmptyStr(slices.FilterStr(tokenizer.Tokenize(s), func(token string) string {
-				return strings.Trim(strings.TrimSpace(token), "/")
+			kws := slices.RemoveEmptyStr(slices.FilterStr(index.tokenizer.Tokenize(s), func(token string) string {
+				return strings.TrimSpace(token)
 			}))
 			for _, token := range kws {
 				if _, ok := keywords[token]; !ok {
@@ -92,10 +100,12 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 				}
 			}
 		}
+		doc.KeyWords = make([]string, 0)
 		for kw := range keywords {
 			doc.KeyWords = append(doc.KeyWords, kw)
 		}
-		err := InvertedIndex.MapKeywordsDoc(doc.KeyWords, doc.ID)
+		json.Print("doc.KeyWords", doc.KeyWords)
+		err := index.MapKeywordsDoc(doc.KeyWords, doc.ID)
 		if err != nil {
 			return err
 		}
@@ -103,19 +113,15 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 		if err != nil {
 			return err
 		}
-		keys[i] = docKey(doc.IndexName, doc.ID)
+		keys[i] = doc.ID
 		values[i] = b
 	}
 	//write index to db.
 	if err := index.UpdateMetadata(); err != nil {
 		return err
 	}
-	if err := db.Batch(keys, values); err != nil {
+	if err := index.store.Batch(keys, values); err != nil {
 		return err
 	}
 	return nil
-}
-
-func docKey(indexName string, docID string) string {
-	return "/index/" + indexName + "/" + docID
 }

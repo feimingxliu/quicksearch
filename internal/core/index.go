@@ -1,39 +1,108 @@
 package core
 
 import (
+	pconfig "github.com/feimingxliu/quicksearch/internal/config"
 	"github.com/feimingxliu/quicksearch/internal/pkg/storager"
-	"github.com/feimingxliu/quicksearch/pkg/errors"
+	ptokenizer "github.com/feimingxliu/quicksearch/internal/pkg/tokenizer"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
+	"os"
+	"path"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
-//TODO: map one Index to one db instance.
-
 type Index struct {
-	Name        string    `json:"name"`
-	StorageType string    `json:"storage_type"`
-	DocNum      uint64    `json:"doc_num"`
-	DocTimeMin  int64     `json:"doc_time_min"`
-	DocTimeMax  int64     `json:"doc_time_max"`
-	CreateAt    time.Time `json:"create_at"`
-	UpdateAt    time.Time `json:"update_at"`
-	rwMutex     sync.RWMutex
-	store       storager.Storager
+	Name          string    `json:"name"`
+	StorageType   string    `json:"storage_type"`
+	TokenizerType string    `json:"tokenizer_type"`
+	DocNum        uint64    `json:"doc_num"`
+	DocTimeMin    int64     `json:"doc_time_min"`
+	DocTimeMax    int64     `json:"doc_time_max"`
+	CreateAt      time.Time `json:"create_at"`
+	UpdateAt      time.Time `json:"update_at"`
+	rwMutex       sync.RWMutex
+	open          bool
+	store         storager.Storager //for document storage
+	inverted      storager.Storager //for inverted index storage
+	tokenizer     ptokenizer.Tokenizer
 }
 
-func NewIndex(name string) *Index {
-	return &Index{
-		Name:        name,
-		StorageType: db.Type(),
-		CreateAt:    time.Now(),
-		UpdateAt:    time.Now(),
+type options struct {
+	name          string
+	storageType   string
+	tokenizerType string
+}
+
+type Option func(*options)
+
+func WithName(name string) Option {
+	return func(o *options) {
+		o.name = name
 	}
 }
 
-func ListIndexes() ([]*Index, error) {
-	data, err := db.List("/index/")
+func WithStorage(s string) Option {
+	return func(o *options) {
+		o.storageType = s
+	}
+}
+
+func WithTokenizer(t string) Option {
+	return func(o *options) {
+		o.tokenizerType = t
+	}
+}
+
+//NewIndex return an Index, which is opened and appended to Indices.
+func NewIndex(opts ...Option) *Index {
+	config := new(options)
+	for _, opt := range opts {
+		opt(config)
+	}
+	indicesRwMu.Lock()
+	defer indicesRwMu.Unlock()
+	if index, ok := Indices[config.name]; ok {
+		return index
+	}
+	index := &Index{
+		Name:          config.name,
+		StorageType:   strings.ToLower(config.storageType),
+		TokenizerType: strings.ToLower(config.tokenizerType),
+		CreateAt:      time.Now(),
+		UpdateAt:      time.Now(),
+	}
+	switch index.StorageType {
+	case "bolt":
+		index.store = storager.NewStorager(
+			storager.Bolt, path.Join(pconfig.Global.Storage.DataDir, "indices", index.Name),
+		)
+		index.inverted = storager.NewStorager(
+			storager.Bolt, path.Join(pconfig.Global.Storage.DataDir, "inverted", index.Name),
+		)
+	default:
+		index.store = storager.NewStorager(
+			storager.Default, path.Join(pconfig.Global.Storage.DataDir, "indices", index.Name),
+		)
+		index.inverted = storager.NewStorager(
+			storager.Default, path.Join(pconfig.Global.Storage.DataDir, "inverted", index.Name),
+		)
+	}
+	switch index.TokenizerType {
+	case "jieba":
+		index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Jieba)
+	default:
+		index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Default)
+	}
+	index.open = true
+	Indices[config.name] = index
+	return index
+}
+
+//ListIndices list all managed indices, note: not opened!
+func ListIndices() ([]*Index, error) {
+	data, err := meta.List()
 	if err != nil {
 		return nil, err
 	}
@@ -49,12 +118,16 @@ func ListIndexes() ([]*Index, error) {
 	return indexes, nil
 }
 
+//GetIndex firstly search in mem, than find in db, in err == nil and index != nil, it's ready to use(opened).
 func GetIndex(name string) (*Index, error) {
-	b, err := db.Get(indexKey(name))
+	indicesRwMu.RLock()
+	if index, ok := Indices[name]; ok {
+		indicesRwMu.RUnlock()
+		return index, nil
+	}
+	indicesRwMu.RUnlock()
+	b, err := meta.Get(name)
 	if err != nil {
-		if err == errors.ErrKeyNotFound {
-			return nil, nil
-		}
 		return nil, err
 	}
 	index := new(Index)
@@ -62,13 +135,133 @@ func GetIndex(name string) (*Index, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err = index.Open(); err != nil {
+		return nil, err
+	}
 	return index, nil
 }
 
-func DeleteIndex(name string) error {
-	return db.DeleteAll(indexKey(name))
+//Open open the index as well as append to the Indices.
+func (index *Index) Open() error {
+	{
+		index.rwMutex.RLock()
+		if index.open {
+			index.rwMutex.RUnlock()
+			return nil
+		}
+		index.rwMutex.RUnlock()
+	}
+
+	{
+		index.rwMutex.Lock()
+		switch index.StorageType {
+		case "bolt":
+			index.store = storager.NewStorager(
+				storager.Bolt, path.Join(pconfig.Global.Storage.DataDir, "indices", index.Name),
+			)
+			index.inverted = storager.NewStorager(
+				storager.Bolt, path.Join(pconfig.Global.Storage.DataDir, "inverted", index.Name),
+			)
+		default:
+			index.store = storager.NewStorager(
+				storager.Default, path.Join(pconfig.Global.Storage.DataDir, "indices", index.Name),
+			)
+			index.inverted = storager.NewStorager(
+				storager.Default, path.Join(pconfig.Global.Storage.DataDir, "inverted", index.Name),
+			)
+		}
+		switch index.TokenizerType {
+		case "jieba":
+			index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Jieba)
+		default:
+			index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Default)
+		}
+		index.open = true
+		index.rwMutex.Unlock()
+	}
+
+	{
+		indicesRwMu.Lock()
+		Indices[index.Name] = index
+		indicesRwMu.Unlock()
+	}
+
+	return nil
 }
 
+//Close closes index and release the related resource, including remove from Indices.
+func (index *Index) Close() error {
+	{
+		index.rwMutex.RLock()
+		if !index.open {
+			index.rwMutex.RUnlock()
+			return nil
+		}
+		index.rwMutex.RUnlock()
+	}
+
+	{
+		index.rwMutex.Lock()
+		if err := index.store.Close(); err != nil {
+			return err
+		}
+		if err := index.inverted.Close(); err != nil {
+			return err
+		}
+		index.tokenizer.Close()
+		index.open = false
+		index.rwMutex.Unlock()
+	}
+
+	{
+		indicesRwMu.Lock()
+		delete(Indices, index.Name)
+		indicesRwMu.Unlock()
+	}
+
+	return nil
+}
+
+//Delete close the index, remove from Indices, delete all docs within it, delete index metadata, remove db file and inverted file.
+func (index *Index) Delete() error {
+	indicesRwMu.Lock()
+	delete(Indices, index.Name)
+	indicesRwMu.Unlock()
+	index.rwMutex.Lock()
+	defer index.rwMutex.Unlock()
+	index.open = false
+	//close tokenizer.
+	index.tokenizer.Close()
+	//delete docs.
+	if err := index.store.DeleteAll(); err != nil {
+		return err
+	}
+	//delete inverted index.
+	if err := index.inverted.DeleteAll(); err != nil {
+		return err
+	}
+	//delete metadata.
+	if err := meta.Delete(index.Name); err != nil {
+		return err
+	}
+	//close db.
+	if err := index.store.Close(); err != nil {
+		return err
+	}
+	if err := index.inverted.Close(); err != nil {
+		return err
+	}
+	//remove db file.
+	if err := os.Remove(path.Join(pconfig.Global.Storage.DataDir, "indices", index.Name)); err != nil {
+		return err
+	}
+	if err := os.Remove(path.Join(pconfig.Global.Storage.DataDir, "inverted", index.Name)); err != nil {
+		return err
+	}
+	return nil
+}
+
+//SetTimestamp updates DocTimeMin and DocTimeMax.
 func (index *Index) SetTimestamp(t int64) {
 	if index.DocTimeMin == 0 {
 		atomic.StoreInt64(&index.DocTimeMin, t)
@@ -84,6 +277,7 @@ func (index *Index) SetTimestamp(t int64) {
 	}
 }
 
+//UpdateMetadata writes the index metadata to db.
 func (index *Index) UpdateMetadata() error {
 	index.rwMutex.RLock()
 	b, err := json.Marshal(index)
@@ -91,9 +285,5 @@ func (index *Index) UpdateMetadata() error {
 		return err
 	}
 	index.rwMutex.RUnlock()
-	return db.Set(indexKey(index.Name), b)
-}
-
-func indexKey(indexName string) string {
-	return "/index/" + indexName
+	return meta.Set(index.Name, b)
 }

@@ -11,15 +11,10 @@ func Init(path string) error {
 }
 
 type Config struct {
-	Storage   Storage   `mapstructure:"storage" json:"storage" yaml:"storage"`
-	Tokenizer Tokenizer `mapstructure:"tokenizer" json:"tokenizer" yaml:"tokenizer"`
+	Storage Storage `mapstructure:"storage" json:"storage" yaml:"meta-storage"`
 }
 
 type Storage struct {
-	Type    string `mapstructure:"type" json:"type" yaml:"type"`
+	Type    string `mapstructure:"meta-type" json:"meta_type" yaml:"meta-type"`
 	DataDir string `mapstructure:"data-dir" json:"data_dir" yaml:"data-dir"`
-}
-
-type Tokenizer struct {
-	Type string `mapstructure:"type" json:"type" yaml:"type"`
 }

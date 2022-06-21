@@ -1,5 +1,3 @@
 storage:
-  type: "bolt"
-  data-dir: "data"
-tokenizer:
-  type: "jieba"
+  data-dir: "data"  #data directory
+  meta-type: "bolt" #the underlying storage to store metadata

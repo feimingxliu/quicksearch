@@ -6,89 +6,64 @@ import (
 	"github.com/feimingxliu/quicksearch/pkg/util/slices"
 )
 
-//TODO: map InvertedIndex to an individual db instance.
-
-var InvertedIndex inverted
-
-type inverted struct{}
-
-type Pair struct {
-	Key string   `json:"keyword"`
-	Ids []string `json:"ids"`
-}
-
-func (iv inverted) MapKeywordsDoc(keywords []string, docID string) error {
-	keys := make([]string, len(keywords), len(keywords))
-	values := make([][]byte, len(keywords), len(keywords))
-	for i, keyword := range keywords {
-		bpair, err := db.Get(invertedKey(keyword))
-		var pair Pair
+func (index *Index) MapKeywordsDoc(keywords []string, docID string) error {
+	if err := index.Open(); err != nil {
+		return err
+	}
+	keys := make([]string, 0)
+	values := make([][]byte, 0)
+	for _, keyword := range keywords {
+		if len(keyword) == 0 {
+			continue
+		}
+		bids, err := index.inverted.Get(keyword)
+		var ids []string
 		if err != nil {
 			if err == errors.ErrKeyNotFound {
-				pair = Pair{
-					Key: keyword,
-					Ids: make([]string, 0, 1),
-				}
+				ids = make([]string, 0)
 			} else {
 				return err
 			}
 		}
-		if bpair != nil {
-			err = json.Unmarshal(bpair, &pair)
+		if bids != nil {
+			err = json.Unmarshal(bids, &ids)
 			if err != nil {
 				return err
 			}
 		}
-		if slices.ContainsStr(pair.Ids, docID) {
+		if slices.ContainsStr(ids, docID) {
 			continue
 		}
-		pair.Ids = append(pair.Ids, docID)
-		bpair, err = json.Marshal(pair)
+		ids = append(ids, docID)
+		bids, err = json.Marshal(ids)
 		if err != nil {
 			return err
 		}
-		keys[i] = invertedKey(keyword)
-		values[i] = bpair
+		keys = append(keys, keyword)
+		values = append(values, bids)
 	}
-	err := db.Batch(keys, values)
+	err := index.inverted.Batch(keys, values)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (iv inverted) GetIDsByKeyword(keyword string) ([]string, error) {
-	bpair, err := db.Get(invertedKey(keyword))
+func (index *Index) GetIDsByKeyword(keyword string) ([]string, error) {
+	if err := index.Open(); err != nil {
+		return nil, err
+	}
+	bids, err := index.inverted.Get(keyword)
 	if err != nil {
 		if err == errors.ErrKeyNotFound {
 			return nil, nil
 		}
 		return nil, err
 	}
-	var pair Pair
-	err = json.Unmarshal(bpair, &pair)
+	var ids []string
+	err = json.Unmarshal(bids, &ids)
 	if err != nil {
 		return nil, err
 	}
-	return pair.Ids, nil
-}
-
-func invertedKey(keyword string) string {
-	return "/inverted/" + keyword
-}
-
-func (iv inverted) listAllKeywordIDs() ([]*Pair, error) {
-	b, err := db.List("/inverted/")
-	if err != nil {
-		return nil, err
-	}
-	pairs := make([]*Pair, 0, len(b))
-	for i := range b {
-		pair := new(Pair)
-		if err = json.Unmarshal(b[i], pair); err != nil {
-			return nil, err
-		}
-		pairs = append(pairs, pair)
-	}
-	return pairs, nil
+	return ids, nil
 }

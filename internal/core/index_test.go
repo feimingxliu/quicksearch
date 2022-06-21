@@ -3,10 +3,13 @@ package core
 import (
 	"fmt"
 	"github.com/feimingxliu/quicksearch/internal/config"
+	"github.com/feimingxliu/quicksearch/pkg/errors"
+	"github.com/feimingxliu/quicksearch/pkg/util"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
+	"log"
+	"os"
 	"sync"
 	"testing"
-	"time"
 )
 
 const indexName = "test"
@@ -21,13 +24,13 @@ func prepare(t *testing.T) {
 		}
 		//change DataDir, because `pwd` is in the source code dir.
 		config.Global.Storage.DataDir = "../../data"
-		Init()
+		InitMeta()
 	})
 }
 
 func TestIndex(t *testing.T) {
 	prepare(t)
-	index := NewIndex(indexName)
+	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
 	if err := index.UpdateMetadata(); err != nil {
 		t.Fatal(err)
 	}
@@ -36,20 +39,22 @@ func TestIndex(t *testing.T) {
 	} else {
 		json.Print("GetIndex", index)
 	}
-	if indexes, err := ListIndexes(); err != nil {
+	if indexes, err := ListIndices(); err != nil {
 		t.Fatal(err)
 	} else {
 		json.Print("ListIndexes", indexes)
 	}
-	if err := DeleteIndex(indexName); err != nil {
+	if err := index.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := index.Open(); err != nil {
+		t.Fatal(err)
+	}
+	if err := index.Delete(); err != nil {
 		t.Fatal(err)
 	} else {
-		if index, err := GetIndex(indexName); err != nil {
-			t.Fatal(err)
-		} else {
-			if index != nil {
-				t.Fatal("DeleteIndex failed, index not deleted!")
-			}
+		if _, err := GetIndex(indexName); err != errors.ErrKeyNotFound {
+			t.Fatal("DeleteIndex failed, index not deleted!")
 		}
 	}
 }
@@ -63,7 +68,7 @@ const raw = `{
 
 func TestIndexDocument(t *testing.T) {
 	prepare(t)
-	index := NewIndex(indexName)
+	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
 	m := make(map[string]interface{})
 	_ = json.Unmarshal([]byte(raw), &m)
 	doc := NewDocument(m)
@@ -73,38 +78,60 @@ func TestIndexDocument(t *testing.T) {
 		json.Print("index", index)
 		json.Print("doc", doc)
 	}
-	pairs, err := InvertedIndex.listAllKeywordIDs()
-	if err != nil {
+	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
 		t.Fatal(err)
+	} else {
+		json.Print("数学", ids)
 	}
-	json.Print("inverted index", pairs)
 }
 
-func TestBulkDocument(t *testing.T) {
+func TestBulkIndexDocument(t *testing.T) {
 	prepare(t)
-	index := NewIndex(indexName)
-	m := make(map[string]interface{})
-	_ = json.Unmarshal([]byte(raw), &m)
-	docs := make([]*Document, 1000, 1000)
-	for i := 0; i < 1000; i++ {
-		docs[i] = NewDocument(m)
-	}
-	var wg sync.WaitGroup
-	for k := 0; k < 10; k++ {
-		go func(k int) {
-			wg.Add(1)
-			if err := index.BulkDocuments(docs[k*100 : k*100+99]); err != nil {
-				fmt.Println(err)
-			}
-			wg.Done()
-		}(k)
-	}
-	wg.Wait()
-	//wait underlying db to execute batch.
-	time.Sleep(10 * time.Second)
-	pairs, err := InvertedIndex.listAllKeywordIDs()
+	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
+	f, err := os.OpenFile("../../test/testdata/zhwiki-20220601-abstract.json", os.O_RDONLY, 0600)
 	if err != nil {
+		log.Fatalln(err)
+	}
+	decoder := json.NewDecoder(f)
+	docsRaw := make([]map[string]interface{}, 0)
+	log.Println("Decoding......")
+	duration := util.ExecTime(func() {
+		if err := decoder.Decode(&docsRaw); err != nil {
+			t.Fatal(err)
+		}
+	})
+	log.Println("Decoding json file costs: ", duration)
+	docs := make([]*Document, 10, 10)
+	for i := 0; i < len(docs); i++ {
+		docs[i] = NewDocument(docsRaw[i])
+		docs[i].WithID(docsRaw[i]["id"].(string))
+	}
+	duration = util.ExecTime(func() {
+		var wg sync.WaitGroup
+		pieces := 10 //divided into pieces
+		base := len(docs) / pieces
+		for k := 0; k < pieces; k++ {
+			wg.Add(1)
+			go func(k int) {
+				if err := index.BulkDocuments(docs[k*base : (k+1)*base]); err != nil {
+					fmt.Println(err)
+				}
+				wg.Done()
+			}(k)
+		}
+		wg.Wait()
+	})
+	log.Printf("Bulk %d documents, costs: %s\n", len(docs), duration)
+	if err := index.UpdateMetadata(); err != nil {
 		t.Fatal(err)
 	}
-	json.Print("inverted index", pairs)
+	//if ids, err := index.GetIDsByKeyword("数学"); err != nil {
+	//	t.Fatal(err)
+	//} else {
+	//	json.Print("数学", ids)
+	//}
+	log.Println("Close Index.")
+	if err := index.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
