@@ -2,7 +2,6 @@ package storager
 
 import (
 	"github.com/feimingxliu/quicksearch/pkg/errors"
-	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"go.etcd.io/bbolt"
 	"log"
 	"os"
@@ -50,7 +49,10 @@ func (b *bolt) List() ([][]byte, error) {
 		}
 		return nil
 	})
-	return data, err
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return data, nil
 }
 
 func (b *bolt) Get(key string) ([]byte, error) {
@@ -75,13 +77,17 @@ func (b *bolt) Set(key string, value []byte) error {
 	if len(key) == 0 {
 		return errors.ErrEmptyKey
 	}
-	return b.db.Update(func(txn *bbolt.Tx) error {
+	err := b.db.Update(func(txn *bbolt.Tx) error {
 		b, err := txn.CreateBucketIfNotExists(defaultBucket)
 		if err != nil {
 			return err
 		}
 		return b.Put([]byte(key), value)
 	})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
 }
 
 func (b *bolt) Batch(keys []string, values [][]byte) error {
@@ -91,7 +97,6 @@ func (b *bolt) Batch(keys []string, values [][]byte) error {
 	return b.db.Batch(func(tx *bbolt.Tx) error {
 		for i, key := range keys {
 			if len(key) == 0 {
-				json.Print("keys", keys)
 				return errors.ErrEmptyKey
 			}
 			b, err := tx.CreateBucketIfNotExists(defaultBucket)
@@ -111,30 +116,42 @@ func (b *bolt) Delete(key string) error {
 	if key == "" {
 		return errors.ErrEmptyKey
 	}
-	return b.db.Update(func(Tx *bbolt.Tx) error {
+	err := b.db.Update(func(Tx *bbolt.Tx) error {
 		b := Tx.Bucket(defaultBucket)
 		if b == nil {
 			return nil
 		}
 		return b.Delete([]byte(key))
 	})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
 }
 
 //DeleteAll deletes a bucket.
 func (b *bolt) DeleteAll() error {
-	return b.db.Update(func(Tx *bbolt.Tx) error {
+	err := b.db.Update(func(Tx *bbolt.Tx) error {
 		bb := Tx.Bucket(defaultBucket)
 		if bb == nil {
 			return nil
 		}
 		return Tx.DeleteBucket(defaultBucket)
 	})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
 }
 
 func (b *bolt) CloneDatabase(path string) error {
-	return b.db.View(func(tx *bbolt.Tx) error {
+	err := b.db.View(func(tx *bbolt.Tx) error {
 		return tx.CopyFile(path, 0600)
 	})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
 }
 
 func (b *bolt) Type() string {
@@ -142,5 +159,9 @@ func (b *bolt) Type() string {
 }
 
 func (b *bolt) Close() error {
-	return b.db.Close()
+	err := b.db.Close()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
 }
