@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"runtime/debug"
 )
 
 func newBolt(dbPath string) *bolt {
@@ -16,10 +17,12 @@ func newBolt(dbPath string) *bolt {
 		FreelistType: bbolt.FreelistArrayType,
 	}
 	if err := os.MkdirAll(path.Dir(dbPath), 0755); err != nil {
+		debug.PrintStack()
 		log.Fatalln("[newBolt] os.MkdirAll: ", err)
 	}
 	db, err := bbolt.Open(dbPath, 0666, opt)
 	if err != nil {
+		debug.PrintStack()
 		log.Fatalln("[newBolt] bbolt.Open: ", err)
 	}
 	return &bolt{db}

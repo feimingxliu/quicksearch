@@ -20,15 +20,15 @@ type Index struct {
 	StorageType   string    `json:"storage_type"`
 	TokenizerType string    `json:"tokenizer_type"`
 	DocNum        uint64    `json:"doc_num"`
-	DocTimeMin    int64     `json:"doc_time_min"`
-	DocTimeMax    int64     `json:"doc_time_max"`
+	DocTimeMin    int64     `json:"doc_time_min"` //indexed doc's min @timestamp (ns)
+	DocTimeMax    int64     `json:"doc_time_max"` //indexed doc's max @timestamp (ns)
 	CreateAt      time.Time `json:"create_at"`
 	UpdateAt      time.Time `json:"update_at"`
+	StorePath     string    `json:"store_path"`    //document storage file path
+	InvertedPath  string    `json:"inverted_path"` //inverted index storage file path
 	rwMutex       sync.RWMutex
 	open          bool
-	storePath     string            //document storage file path
 	store         storager.Storager //for document storage
-	invertedPath  string            //inverted index storage file path
 	inverted      storager.Storager //for inverted index storage
 	tokenizer     ptokenizer.Tokenizer
 }
@@ -72,25 +72,25 @@ func NewIndex(opts ...Option) *Index {
 		Name:          config.name,
 		StorageType:   strings.ToLower(config.storageType),
 		TokenizerType: strings.ToLower(config.tokenizerType),
-		storePath:     path.Join(pconfig.Global.Storage.DataDir, "indices", base64.Encode([]byte(config.name))),
-		invertedPath:  path.Join(pconfig.Global.Storage.DataDir, "inverted", base64.Encode([]byte(config.name))),
+		StorePath:     path.Join(pconfig.Global.Storage.DataDir, "indices", base64.Encode([]byte(config.name))),
+		InvertedPath:  path.Join(pconfig.Global.Storage.DataDir, "inverted", base64.Encode([]byte(config.name))),
 		CreateAt:      time.Now(),
 		UpdateAt:      time.Now(),
 	}
 	switch index.StorageType {
 	case "bolt":
 		index.store = storager.NewStorager(
-			storager.Bolt, index.storePath,
+			storager.Bolt, index.StorePath,
 		)
 		index.inverted = storager.NewStorager(
-			storager.Bolt, index.invertedPath,
+			storager.Bolt, index.InvertedPath,
 		)
 	default:
 		index.store = storager.NewStorager(
-			storager.Default, index.storePath,
+			storager.Default, index.StorePath,
 		)
 		index.inverted = storager.NewStorager(
-			storager.Default, index.invertedPath,
+			storager.Default, index.InvertedPath,
 		)
 	}
 	switch index.TokenizerType {
@@ -103,6 +103,8 @@ func NewIndex(opts ...Option) *Index {
 	indicesRwMu.Lock()
 	Indices[config.name] = index
 	indicesRwMu.Unlock()
+	//store metadata.
+	_ = index.UpdateMetadata()
 	return index
 }
 
@@ -166,17 +168,17 @@ func (index *Index) Open() error {
 		switch index.StorageType {
 		case "bolt":
 			index.store = storager.NewStorager(
-				storager.Bolt, index.storePath,
+				storager.Bolt, index.StorePath,
 			)
 			index.inverted = storager.NewStorager(
-				storager.Bolt, index.invertedPath,
+				storager.Bolt, index.InvertedPath,
 			)
 		default:
 			index.store = storager.NewStorager(
-				storager.Default, index.storePath,
+				storager.Default, index.StorePath,
 			)
 			index.inverted = storager.NewStorager(
-				storager.Default, index.invertedPath,
+				storager.Default, index.InvertedPath,
 			)
 		}
 		switch index.TokenizerType {
@@ -261,10 +263,10 @@ func (index *Index) Delete() error {
 		return err
 	}
 	//remove db file.
-	if err := os.Remove(index.storePath); err != nil {
+	if err := os.Remove(index.StorePath); err != nil {
 		return err
 	}
-	if err := os.Remove(index.invertedPath); err != nil {
+	if err := os.Remove(index.InvertedPath); err != nil {
 		return err
 	}
 	return nil
@@ -284,14 +286,14 @@ func (index *Index) Clone(name string) error {
 		DocTimeMax:    index.DocTimeMax,
 		CreateAt:      time.Now(),
 		UpdateAt:      time.Now(),
-		storePath:     path.Join(path.Dir(index.storePath), base64.Encode([]byte(name))),
-		invertedPath:  path.Join(path.Dir(index.invertedPath), base64.Encode([]byte(name))),
+		StorePath:     path.Join(path.Dir(index.StorePath), base64.Encode([]byte(name))),
+		InvertedPath:  path.Join(path.Dir(index.InvertedPath), base64.Encode([]byte(name))),
 	}
 	//clone storage file.
-	if err := index.store.CloneDatabase(clone.storePath); err != nil {
+	if err := index.store.CloneDatabase(clone.StorePath); err != nil {
 		return err
 	}
-	if err := index.inverted.CloneDatabase(clone.invertedPath); err != nil {
+	if err := index.inverted.CloneDatabase(clone.InvertedPath); err != nil {
 		return err
 	}
 	//write metadata.

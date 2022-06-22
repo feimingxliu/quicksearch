@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+//IndexDocument adds a doc to the index.
 func (index *Index) IndexDocument(doc *Document) error {
 	if doc == nil {
 		return nil
@@ -79,6 +80,39 @@ func (index *Index) IndexDocument(doc *Document) error {
 	return nil
 }
 
+//DeleteDocument deletes the doc from index.
+func (index *Index) DeleteDocument(docID string) error {
+	if len(docID) == 0 {
+		return nil
+	}
+	if err := index.Open(); err != nil {
+		return err
+	}
+	//check doc exists and update the inverted index.
+	if bdoc, err := index.store.Get(docID); err == nil {
+		doc := new(Document)
+		if err = json.Unmarshal(bdoc, doc); err != nil {
+			return err
+		}
+		if err = index.UnMapKeywordsDoc(doc.KeyWords, doc.ID); err != nil {
+			return err
+		}
+	} else {
+		return nil
+	}
+	//update index metadata.
+	index.rwMutex.Lock()
+	index.DocNum--
+	index.UpdateAt = time.Now()
+	index.rwMutex.Unlock()
+	if err := index.UpdateMetadata(); err != nil {
+		return err
+	}
+	//delete the doc.
+	return index.store.Delete(docID)
+}
+
+//BulkDocuments adds docs to the index.
 func (index *Index) BulkDocuments(docs []*Document) error {
 	if len(docs) == 0 {
 		return nil

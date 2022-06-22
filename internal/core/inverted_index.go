@@ -8,6 +8,7 @@ import (
 
 //TODO: optimize MapKeywordsDoc, it's too slow.
 
+//MapKeywordsDoc maps keywords to the doc.
 func (index *Index) MapKeywordsDoc(keywords []string, docID string) error {
 	if err := index.Open(); err != nil {
 		return err
@@ -51,6 +52,7 @@ func (index *Index) MapKeywordsDoc(keywords []string, docID string) error {
 	return nil
 }
 
+//UnMapKeywordsDoc unmaps keywords to the doc.
 func (index *Index) UnMapKeywordsDoc(keywords []string, docID string) error {
 	if err := index.Open(); err != nil {
 		return err
@@ -92,6 +94,7 @@ func (index *Index) UnMapKeywordsDoc(keywords []string, docID string) error {
 	return nil
 }
 
+//GetIDsByKeyword retrieves the associated IDs about the keyword.
 func (index *Index) GetIDsByKeyword(keyword string) ([]string, error) {
 	if err := index.Open(); err != nil {
 		return nil, err
