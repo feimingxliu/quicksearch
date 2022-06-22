@@ -3,7 +3,10 @@ package errors
 import "errors"
 
 //logic error.
-var ()
+var (
+	ErrIndexNotFound      = errors.New("Index not found")
+	ErrCloneIndexSameName = errors.New("Cloned index name is same as origin")
+)
 
 //underlying db error.
 var (

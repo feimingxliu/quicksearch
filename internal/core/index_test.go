@@ -58,6 +58,47 @@ func TestIndex(t *testing.T) {
 	}
 }
 
+func TestCloneIndex(t *testing.T) {
+	prepare(t)
+	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
+	m := make(map[string]interface{})
+	_ = json.Unmarshal([]byte(raw), &m)
+	doc := NewDocument(m)
+	if err := index.IndexDocument(doc); err != nil {
+		t.Fatal(err)
+	} else {
+		json.Print("index", index)
+		json.Print("doc", doc)
+	}
+	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
+		t.Fatal(err)
+	} else {
+		json.Print("数学", ids)
+	}
+	cloneName := indexName + "-clone"
+	if err := index.Clone(cloneName); err != nil {
+		t.Fatal(err)
+	}
+	clone, err := GetIndex(cloneName)
+	if err != nil {
+		t.Fatal(err)
+	} else {
+		json.Print("clone index", clone)
+	}
+	if ids, err := clone.GetIDsByKeyword("数学"); err != nil {
+		t.Fatal(err)
+	} else {
+		json.Print("数学", ids)
+	}
+	log.Println("Delete Index.")
+	if err := index.Delete(); err != nil {
+		t.Fatal(err)
+	}
+	if err := clone.Delete(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 const raw = `{
   "id": "cc5caccfdcc743c387cfacce7ebb0369",
   "title": "Wikipedia: 数学",

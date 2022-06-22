@@ -120,11 +120,17 @@ func (b *bolt) Delete(key string) error {
 //DeleteAll deletes a bucket.
 func (b *bolt) DeleteAll() error {
 	return b.db.Update(func(Tx *bbolt.Tx) error {
-		bb := Tx.Bucket([]byte(defaultBucket))
+		bb := Tx.Bucket(defaultBucket)
 		if bb == nil {
 			return nil
 		}
 		return Tx.DeleteBucket(defaultBucket)
+	})
+}
+
+func (b *bolt) CloneDatabase(path string) error {
+	return b.db.View(func(tx *bbolt.Tx) error {
+		return tx.CopyFile(path, 0600)
 	})
 }
 

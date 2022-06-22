@@ -4,6 +4,8 @@ import (
 	pconfig "github.com/feimingxliu/quicksearch/internal/config"
 	"github.com/feimingxliu/quicksearch/internal/pkg/storager"
 	ptokenizer "github.com/feimingxliu/quicksearch/internal/pkg/tokenizer"
+	"github.com/feimingxliu/quicksearch/pkg/errors"
+	"github.com/feimingxliu/quicksearch/pkg/util/base64"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"os"
 	"path"
@@ -24,7 +26,9 @@ type Index struct {
 	UpdateAt      time.Time `json:"update_at"`
 	rwMutex       sync.RWMutex
 	open          bool
+	storePath     string            //document storage file path
 	store         storager.Storager //for document storage
+	invertedPath  string            //inverted index storage file path
 	inverted      storager.Storager //for inverted index storage
 	tokenizer     ptokenizer.Tokenizer
 }
@@ -61,32 +65,32 @@ func NewIndex(opts ...Option) *Index {
 	for _, opt := range opts {
 		opt(config)
 	}
-	indicesRwMu.Lock()
-	defer indicesRwMu.Unlock()
-	if index, ok := Indices[config.name]; ok {
+	if index, err := GetIndex(config.name); err == nil && index != nil {
 		return index
 	}
 	index := &Index{
 		Name:          config.name,
 		StorageType:   strings.ToLower(config.storageType),
 		TokenizerType: strings.ToLower(config.tokenizerType),
+		storePath:     path.Join(pconfig.Global.Storage.DataDir, "indices", base64.Encode([]byte(config.name))),
+		invertedPath:  path.Join(pconfig.Global.Storage.DataDir, "inverted", base64.Encode([]byte(config.name))),
 		CreateAt:      time.Now(),
 		UpdateAt:      time.Now(),
 	}
 	switch index.StorageType {
 	case "bolt":
 		index.store = storager.NewStorager(
-			storager.Bolt, path.Join(pconfig.Global.Storage.DataDir, "indices", index.Name),
+			storager.Bolt, index.storePath,
 		)
 		index.inverted = storager.NewStorager(
-			storager.Bolt, path.Join(pconfig.Global.Storage.DataDir, "inverted", index.Name),
+			storager.Bolt, index.invertedPath,
 		)
 	default:
 		index.store = storager.NewStorager(
-			storager.Default, path.Join(pconfig.Global.Storage.DataDir, "indices", index.Name),
+			storager.Default, index.storePath,
 		)
 		index.inverted = storager.NewStorager(
-			storager.Default, path.Join(pconfig.Global.Storage.DataDir, "inverted", index.Name),
+			storager.Default, index.invertedPath,
 		)
 	}
 	switch index.TokenizerType {
@@ -96,7 +100,9 @@ func NewIndex(opts ...Option) *Index {
 		index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Default)
 	}
 	index.open = true
+	indicesRwMu.Lock()
 	Indices[config.name] = index
+	indicesRwMu.Unlock()
 	return index
 }
 
@@ -128,6 +134,9 @@ func GetIndex(name string) (*Index, error) {
 	indicesRwMu.RUnlock()
 	b, err := meta.Get(name)
 	if err != nil {
+		if err == errors.ErrKeyNotFound {
+			return nil, errors.ErrIndexNotFound
+		}
 		return nil, err
 	}
 	index := new(Index)
@@ -157,17 +166,17 @@ func (index *Index) Open() error {
 		switch index.StorageType {
 		case "bolt":
 			index.store = storager.NewStorager(
-				storager.Bolt, path.Join(pconfig.Global.Storage.DataDir, "indices", index.Name),
+				storager.Bolt, index.storePath,
 			)
 			index.inverted = storager.NewStorager(
-				storager.Bolt, path.Join(pconfig.Global.Storage.DataDir, "inverted", index.Name),
+				storager.Bolt, index.invertedPath,
 			)
 		default:
 			index.store = storager.NewStorager(
-				storager.Default, path.Join(pconfig.Global.Storage.DataDir, "indices", index.Name),
+				storager.Default, index.storePath,
 			)
 			index.inverted = storager.NewStorager(
-				storager.Default, path.Join(pconfig.Global.Storage.DataDir, "inverted", index.Name),
+				storager.Default, index.invertedPath,
 			)
 		}
 		switch index.TokenizerType {
@@ -252,10 +261,45 @@ func (index *Index) Delete() error {
 		return err
 	}
 	//remove db file.
-	if err := os.Remove(path.Join(pconfig.Global.Storage.DataDir, "indices", index.Name)); err != nil {
+	if err := os.Remove(index.storePath); err != nil {
 		return err
 	}
-	if err := os.Remove(path.Join(pconfig.Global.Storage.DataDir, "inverted", index.Name)); err != nil {
+	if err := os.Remove(index.invertedPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+//Clone clones the entire index to a new index, docs included.
+func (index *Index) Clone(name string) error {
+	if name == index.Name {
+		return errors.ErrCloneIndexSameName
+	}
+	clone := &Index{
+		Name:          name,
+		StorageType:   index.StorageType,
+		TokenizerType: index.TokenizerType,
+		DocNum:        index.DocNum,
+		DocTimeMin:    index.DocTimeMin,
+		DocTimeMax:    index.DocTimeMax,
+		CreateAt:      time.Now(),
+		UpdateAt:      time.Now(),
+		storePath:     path.Join(path.Dir(index.storePath), base64.Encode([]byte(name))),
+		invertedPath:  path.Join(path.Dir(index.invertedPath), base64.Encode([]byte(name))),
+	}
+	//clone storage file.
+	if err := index.store.CloneDatabase(clone.storePath); err != nil {
+		return err
+	}
+	if err := index.inverted.CloneDatabase(clone.invertedPath); err != nil {
+		return err
+	}
+	//write metadata.
+	if err := clone.UpdateMetadata(); err != nil {
+		return err
+	}
+	//open the index.
+	if err := clone.Open(); err != nil {
 		return err
 	}
 	return nil

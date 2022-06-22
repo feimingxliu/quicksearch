@@ -25,6 +25,7 @@ type Storager interface {
 	Batch([]string, [][]byte) error
 	Delete(string) error
 	DeleteAll() error
+	CloneDatabase(string) error
 	Type() string
 	Close() error
 }
