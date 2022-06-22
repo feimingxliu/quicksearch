@@ -6,6 +6,8 @@ import (
 	"github.com/feimingxliu/quicksearch/pkg/util/slices"
 )
 
+//TODO: optimize MapKeywordsDoc, it's too slow.
+
 func (index *Index) MapKeywordsDoc(keywords []string, docID string) error {
 	if err := index.Open(); err != nil {
 		return err
