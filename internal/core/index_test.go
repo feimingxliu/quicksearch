@@ -82,6 +82,46 @@ func TestIndexDocument(t *testing.T) {
 	} else {
 		json.Print("数学", ids)
 	}
+	log.Println("Delete Index.")
+	if err := index.Delete(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateDocument(t *testing.T) {
+	prepare(t)
+	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
+	m := make(map[string]interface{})
+	_ = json.Unmarshal([]byte(raw), &m)
+	doc := NewDocument(m)
+	if err := index.IndexDocument(doc); err != nil {
+		t.Fatal(err)
+	} else {
+		json.Print("index", index)
+		json.Print("doc", doc)
+	}
+	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
+		t.Fatal(err)
+	} else {
+		json.Print("Before update, search `数学`", ids)
+	}
+	//change the doc source.
+	doc.Source = map[string]interface{}{}
+	if err := index.IndexDocument(doc); err != nil {
+		t.Fatal(err)
+	} else {
+		json.Print("index same doc", index)
+		json.Print("doc", doc)
+	}
+	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
+		t.Fatal(err)
+	} else {
+		json.Print("After update, search `数学`", ids)
+	}
+	log.Println("Delete Index.")
+	if err := index.Delete(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 /*func TestBulkIndexDocument(t *testing.T) {
@@ -187,8 +227,8 @@ func bulkIndexDocument(t *testing.T, n uint) {
 	} else {
 		json.Print("数学", ids)
 	}
-	log.Println("Close Index.")
-	if err := index.Close(); err != nil {
+	log.Println("Delete Index.")
+	if err := index.Delete(); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -51,6 +51,47 @@ func (index *Index) MapKeywordsDoc(keywords []string, docID string) error {
 	return nil
 }
 
+func (index *Index) UnMapKeywordsDoc(keywords []string, docID string) error {
+	if err := index.Open(); err != nil {
+		return err
+	}
+	keys := make([]string, 0)
+	values := make([][]byte, 0)
+	for _, keyword := range keywords {
+		if len(keyword) == 0 {
+			continue
+		}
+		bids, err := index.inverted.Get(keyword)
+		var ids []string
+		if err != nil {
+			if err == errors.ErrKeyNotFound {
+				//this can never happen.
+				continue
+			} else {
+				return err
+			}
+		}
+		if bids != nil {
+			err = json.Unmarshal(bids, &ids)
+			if err != nil {
+				return err
+			}
+		}
+		ids = slices.RemoveSpecifiedStr(ids, docID)
+		bids, err = json.Marshal(ids)
+		if err != nil {
+			return err
+		}
+		keys = append(keys, keyword)
+		values = append(values, bids)
+	}
+	err := index.inverted.Batch(keys, values)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (index *Index) GetIDsByKeyword(keyword string) ([]string, error) {
 	if err := index.Open(); err != nil {
 		return nil, err

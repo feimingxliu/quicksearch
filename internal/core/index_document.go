@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-//TODO: support update document
-
 func (index *Index) IndexDocument(doc *Document) error {
 	if doc == nil {
 		return nil
@@ -18,12 +16,27 @@ func (index *Index) IndexDocument(doc *Document) error {
 	if err := index.Open(); err != nil {
 		return err
 	}
+	//if doc already exists, remove old keyword doc map.
+	var update bool
+	if bdoc, err := index.store.Get(doc.ID); err == nil {
+		//shadowed doc.
+		doc := new(Document)
+		if err = json.Unmarshal(bdoc, doc); err != nil {
+			return err
+		}
+		if err = index.UnMapKeywordsDoc(doc.KeyWords, doc.ID); err != nil {
+			return err
+		}
+		update = true
+	}
 	doc.IndexName = index.Name
 	doc.Index = index
 	//update index metadata.
 	index.SetTimestamp(doc.Timestamp.UnixNano())
 	index.rwMutex.Lock()
-	index.DocNum++
+	if !update {
+		index.DocNum++
+	}
 	index.UpdateAt = time.Now()
 	index.rwMutex.Unlock()
 	//write to db.
@@ -75,15 +88,24 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 	}
 	keys := make([]string, len(docs), len(docs))
 	values := make([][]byte, len(docs), len(docs))
+	totalBulk := len(docs)
 	for i, doc := range docs {
+		//if doc already exists, remove old keyword doc map.
+		if bdoc, err := index.store.Get(doc.ID); err == nil {
+			//shadowed doc.
+			doc := new(Document)
+			if err = json.Unmarshal(bdoc, doc); err != nil {
+				return err
+			}
+			if err = index.UnMapKeywordsDoc(doc.KeyWords, doc.ID); err != nil {
+				return err
+			}
+			totalBulk--
+		}
 		doc.IndexName = index.Name
 		doc.Index = index
 		//update index metadata.
 		index.SetTimestamp(doc.Timestamp.UnixNano())
-		index.rwMutex.Lock()
-		index.DocNum++
-		index.UpdateAt = time.Now()
-		index.rwMutex.Unlock()
 		//extract tokens and add or update inverted index.
 		flatDoc := maps.Flatten(doc.Source)
 		keywords := make(map[string]struct{})
@@ -104,7 +126,6 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 		for kw := range keywords {
 			doc.KeyWords = append(doc.KeyWords, kw)
 		}
-		json.Print("doc.KeyWords", doc.KeyWords)
 		err := index.MapKeywordsDoc(doc.KeyWords, doc.ID)
 		if err != nil {
 			return err
@@ -116,6 +137,10 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 		keys[i] = doc.ID
 		values[i] = b
 	}
+	index.rwMutex.Lock()
+	index.DocNum += uint64(totalBulk)
+	index.UpdateAt = time.Now()
+	index.rwMutex.Unlock()
 	//write index to db.
 	if err := index.UpdateMetadata(); err != nil {
 		return err

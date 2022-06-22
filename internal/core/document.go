@@ -22,6 +22,7 @@ func NewDocument(source map[string]interface{}) *Document {
 	}
 }
 
-func (doc *Document) WithID(id string) {
+func (doc *Document) WithID(id string) *Document {
 	doc.ID = id
+	return doc
 }

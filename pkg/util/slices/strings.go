@@ -39,3 +39,13 @@ func RemoveEmptyStr(arr []string) []string {
 	}
 	return a
 }
+
+func RemoveSpecifiedStr(arr []string, remove string) []string {
+	a := make([]string, 0)
+	for i := range arr {
+		if arr[i] != remove {
+			a = append(a, arr[i])
+		}
+	}
+	return a
+}
