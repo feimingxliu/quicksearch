@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/feimingxliu/quicksearch/pkg/util/maps"
 	"github.com/feimingxliu/quicksearch/pkg/util/slices"
@@ -78,6 +79,24 @@ func (index *Index) IndexDocument(doc *Document) error {
 		return err
 	}
 	return nil
+}
+
+//RetrieveDocument returns the doc with docID from index.
+func (index *Index) RetrieveDocument(docID string) (*Document, error) {
+	if bdoc, err := index.store.Get(docID); err == nil {
+		//shadowed doc.
+		doc := new(Document)
+		if err = json.Unmarshal(bdoc, doc); err != nil {
+			return nil, err
+		}
+		return doc, nil
+	} else {
+		if err == errors.ErrKeyNotFound {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
 }
 
 //DeleteDocument deletes the doc from index.

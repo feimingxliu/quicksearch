@@ -5,6 +5,7 @@ import "errors"
 //logic error.
 var (
 	ErrIndexNotFound      = errors.New("Index not found")
+	ErrDocumentNotFound   = errors.New("Document not found")
 	ErrCloneIndexSameName = errors.New("Cloned index name is same as origin")
 )
 

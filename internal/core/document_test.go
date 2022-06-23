@@ -32,6 +32,29 @@ func TestIndexDocument(t *testing.T) {
 	}
 }
 
+func TestRetrieveDocument(t *testing.T) {
+	prepare(t)
+	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
+	m := make(map[string]interface{})
+	_ = json.Unmarshal([]byte(raw), &m)
+	doc := NewDocument(m)
+	if err := index.IndexDocument(doc); err != nil {
+		t.Fatal(err)
+	} else {
+		json.Print("index", index)
+		json.Print("doc", doc)
+	}
+	if doc, err := index.RetrieveDocument(doc.ID); err != nil {
+		t.Fatal(err)
+	} else {
+		json.Print("RetrieveDocument", doc)
+	}
+	log.Println("Delete Index.")
+	if err := index.Delete(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDeleteDocument(t *testing.T) {
 	prepare(t)
 	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
