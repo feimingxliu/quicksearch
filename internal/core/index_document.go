@@ -1,11 +1,13 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/feimingxliu/quicksearch/pkg/util/maps"
 	"github.com/feimingxliu/quicksearch/pkg/util/slices"
+	"golang.org/x/sync/errgroup"
 	"strings"
 	"time"
 )
@@ -139,10 +141,9 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 	if err := index.Open(); err != nil {
 		return err
 	}
-	keys := make([]string, len(docs), len(docs))
-	values := make([][]byte, len(docs), len(docs))
 	totalBulk := len(docs)
-	for i, doc := range docs {
+	g, _ := errgroup.WithContext(context.Background())
+	for _, doc := range docs {
 		//if doc already exists, remove old keyword doc map.
 		if bdoc, err := index.store.Get(doc.ID); err == nil {
 			//shadowed doc.
@@ -179,16 +180,28 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 		for kw := range keywords {
 			doc.KeyWords = append(doc.KeyWords, kw)
 		}
-		err := index.MapKeywordsDoc(doc.KeyWords, doc.ID)
-		if err != nil {
-			return err
-		}
-		b, err := json.Marshal(doc)
-		if err != nil {
-			return err
-		}
-		keys[i] = doc.ID
-		values[i] = b
+		copyDoc := doc
+		g.Go(func() error {
+			err := index.MapKeywordsDoc(copyDoc.KeyWords, copyDoc.ID)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		//write doc to db.
+		g.Go(func() error {
+			b, err := json.Marshal(copyDoc)
+			if err != nil {
+				return err
+			}
+			if err = index.store.Set(copyDoc.ID, b); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
 	}
 	index.rwMutex.Lock()
 	index.DocNum += uint64(totalBulk)
@@ -196,9 +209,6 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 	index.rwMutex.Unlock()
 	//write index to db.
 	if err := index.UpdateMetadata(); err != nil {
-		return err
-	}
-	if err := index.store.Batch(keys, values); err != nil {
 		return err
 	}
 	return nil

@@ -10,6 +10,7 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/yanyiwu/gojieba v1.1.2
 	go.etcd.io/bbolt v1.3.6
+	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
 )
 
 require (
