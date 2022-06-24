@@ -24,6 +24,17 @@ func newBolt(dbPath string) *bolt {
 		debug.PrintStack()
 		log.Fatalln("[newBolt] bbolt.Open: ", err)
 	}
+	err = db.Update(func(txn *bbolt.Tx) error {
+		_, err := txn.CreateBucketIfNotExists(defaultBucket)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		debug.PrintStack()
+		log.Fatalln("[newBolt] Tx.CreateBucketIfNotExists: ", err)
+	}
 	return &bolt{db}
 }
 

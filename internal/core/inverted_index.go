@@ -6,27 +6,22 @@ import (
 	"github.com/feimingxliu/quicksearch/pkg/util/slices"
 )
 
-//TODO: optimize MapKeywordsDoc, it's too slow.
-
 //MapKeywordsDoc maps keywords to the doc.
 func (index *Index) MapKeywordsDoc(keywords []string, docID string) error {
 	if err := index.Open(); err != nil {
 		return err
 	}
-	keys := make([]string, 0)
-	values := make([][]byte, 0)
+	keys := make([]string, 0, len(keywords))
+	values := make([][]byte, 0, len(keywords))
 	for _, keyword := range keywords {
 		if len(keyword) == 0 {
 			continue
 		}
 		bids, err := index.inverted.Get(keyword)
 		var ids []string
-		if err != nil {
-			if err == errors.ErrKeyNotFound {
-				ids = make([]string, 0)
-			} else {
-				return err
-			}
+		//not exits now.
+		if err == errors.ErrKeyNotFound {
+			ids = make([]string, 0, 1)
 		}
 		if bids != nil {
 			err = json.Unmarshal(bids, &ids)
@@ -57,21 +52,17 @@ func (index *Index) UnMapKeywordsDoc(keywords []string, docID string) error {
 	if err := index.Open(); err != nil {
 		return err
 	}
-	keys := make([]string, 0)
-	values := make([][]byte, 0)
+	keys := make([]string, 0, len(keywords))
+	values := make([][]byte, 0, len(keywords))
 	for _, keyword := range keywords {
 		if len(keyword) == 0 {
 			continue
 		}
 		bids, err := index.inverted.Get(keyword)
 		var ids []string
-		if err != nil {
-			if err == errors.ErrKeyNotFound {
-				//this can never happen.
-				continue
-			} else {
-				return err
-			}
+		if err == errors.ErrKeyNotFound {
+			//this can never happen logically.
+			continue
 		}
 		if bids != nil {
 			err = json.Unmarshal(bids, &ids)

@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-//TODO: separate Index and update.
-
 //IndexDocument adds a doc to the index.
 func (index *Index) IndexDocument(doc *Document) error {
 	if doc == nil {
@@ -22,27 +20,12 @@ func (index *Index) IndexDocument(doc *Document) error {
 	if err := index.Open(); err != nil {
 		return err
 	}
-	//if doc already exists, remove old keyword doc map.
-	var update bool
-	if bdoc, err := index.store.Get(doc.ID); err == nil {
-		//shadowed doc.
-		doc := new(Document)
-		if err = json.Unmarshal(bdoc, doc); err != nil {
-			return err
-		}
-		if err = index.UnMapKeywordsDoc(doc.KeyWords, doc.ID); err != nil {
-			return err
-		}
-		update = true
-	}
 	doc.IndexName = index.Name
 	doc.Index = index
 	//update index metadata.
 	index.SetTimestamp(doc.Timestamp.UnixNano())
 	index.rwMutex.Lock()
-	if !update {
-		index.DocNum++
-	}
+	index.DocNum++
 	index.UpdateAt = time.Now()
 	index.rwMutex.Unlock()
 	//write to db.
@@ -55,7 +38,7 @@ func (index *Index) IndexDocument(doc *Document) error {
 	for _, value := range flatDoc {
 		//this casts both string and number to string.
 		s := fmt.Sprint(value)
-		//filter the key char '/' and blank token.
+		//filter blank token.
 		kws := slices.RemoveEmptyStr(slices.FilterStr(index.tokenizer.Tokenize(s), func(token string) string {
 			return strings.TrimSpace(token)
 		}))
@@ -65,7 +48,75 @@ func (index *Index) IndexDocument(doc *Document) error {
 			}
 		}
 	}
-	doc.KeyWords = make([]string, 0)
+	doc.KeyWords = make([]string, 0, len(keywords))
+	for kw := range keywords {
+		doc.KeyWords = append(doc.KeyWords, kw)
+	}
+	err := index.MapKeywordsDoc(doc.KeyWords, doc.ID)
+	if err != nil {
+		return err
+	}
+	//write doc into db.
+	b, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+	err = index.store.Set(doc.ID, b)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//UpdateDocument updates a existing doc in the index.
+func (index *Index) UpdateDocument(doc *Document) error {
+	if doc == nil {
+		return nil
+	}
+	if err := index.Open(); err != nil {
+		return err
+	}
+	//remove old keyword doc map.
+	if bdoc, err := index.store.Get(doc.ID); err == nil {
+		//shadowed doc.
+		doc := new(Document)
+		if err = json.Unmarshal(bdoc, doc); err != nil {
+			return err
+		}
+		if err = index.UnMapKeywordsDoc(doc.KeyWords, doc.ID); err != nil {
+			return err
+		}
+	} else {
+		return errors.ErrDocumentNotFound
+	}
+	doc.IndexName = index.Name
+	doc.Index = index
+	//update index metadata.
+	index.SetTimestamp(doc.Timestamp.UnixNano())
+	index.rwMutex.Lock()
+	index.UpdateAt = time.Now()
+	index.rwMutex.Unlock()
+	//write to db.
+	if err := index.UpdateMetadata(); err != nil {
+		return err
+	}
+	//extract tokens and add or update inverted index.
+	flatDoc := maps.Flatten(doc.Source)
+	keywords := make(map[string]struct{})
+	for _, value := range flatDoc {
+		//this casts both string and number to string.
+		s := fmt.Sprint(value)
+		//filter blank token.
+		kws := slices.RemoveEmptyStr(slices.FilterStr(index.tokenizer.Tokenize(s), func(token string) string {
+			return strings.TrimSpace(token)
+		}))
+		for _, token := range kws {
+			if _, ok := keywords[token]; !ok {
+				keywords[token] = struct{}{}
+			}
+		}
+	}
+	doc.KeyWords = make([]string, 0, len(keywords))
 	for kw := range keywords {
 		doc.KeyWords = append(doc.KeyWords, kw)
 	}
@@ -135,9 +186,7 @@ func (index *Index) DeleteDocument(docID string) error {
 	return index.store.Delete(docID)
 }
 
-//TODO: optimize bulk, do not check for update.
-
-//BulkDocuments adds docs to the index.
+//BulkDocuments adds docs to the index, it does not check for updated doc.
 func (index *Index) BulkDocuments(docs []*Document) error {
 	if len(docs) == 0 {
 		return nil
@@ -148,25 +197,13 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 	totalBulk := len(docs)
 	g, _ := errgroup.WithContext(context.Background())
 	for _, doc := range docs {
-		//if doc already exists, remove old keyword doc map.
-		if bdoc, err := index.store.Get(doc.ID); err == nil {
-			//shadowed doc.
-			doc := new(Document)
-			if err = json.Unmarshal(bdoc, doc); err != nil {
-				return err
-			}
-			if err = index.UnMapKeywordsDoc(doc.KeyWords, doc.ID); err != nil {
-				return err
-			}
-			totalBulk--
-		}
 		doc.IndexName = index.Name
 		doc.Index = index
 		//update index metadata.
 		index.SetTimestamp(doc.Timestamp.UnixNano())
 		//extract tokens and add or update inverted index.
 		flatDoc := maps.Flatten(doc.Source)
-		keywords := make(map[string]struct{})
+		keywords := make([]string, 0)
 		for _, value := range flatDoc {
 			//this casts both string and number to string.
 			s := fmt.Sprint(value)
@@ -174,16 +211,9 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 			kws := slices.RemoveEmptyStr(slices.FilterStr(index.tokenizer.Tokenize(s), func(token string) string {
 				return strings.TrimSpace(token)
 			}))
-			for _, token := range kws {
-				if _, ok := keywords[token]; !ok {
-					keywords[token] = struct{}{}
-				}
-			}
+			keywords = append(keywords, kws...)
 		}
-		doc.KeyWords = make([]string, 0)
-		for kw := range keywords {
-			doc.KeyWords = append(doc.KeyWords, kw)
-		}
+		doc.KeyWords = slices.DistinctStr(keywords)
 		copyDoc := doc
 		//Note: use Goroutine may run out of memory when bulk large quantity of docs.
 		g.Go(func() error {

@@ -15,12 +15,15 @@ func TestIndexDocument(t *testing.T) {
 	m := make(map[string]interface{})
 	_ = json.Unmarshal([]byte(raw), &m)
 	doc := NewDocument(m)
-	if err := index.IndexDocument(doc); err != nil {
-		t.Fatal(err)
-	} else {
-		json.Print("index", index)
-		json.Print("doc", doc)
-	}
+	duration := util.ExecTime(func() {
+		if err := index.IndexDocument(doc); err != nil {
+			t.Fatal(err)
+		} else {
+			json.Print("index", index)
+			json.Print("doc", doc)
+		}
+	})
+	log.Println("IndexDocument costs: ", duration)
 	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
 		t.Fatal(err)
 	} else {
@@ -92,12 +95,15 @@ func TestUpdateDocument(t *testing.T) {
 	m := make(map[string]interface{})
 	_ = json.Unmarshal([]byte(raw), &m)
 	doc := NewDocument(m)
-	if err := index.IndexDocument(doc); err != nil {
-		t.Fatal(err)
-	} else {
-		json.Print("index", index)
-		json.Print("doc", doc)
-	}
+	duration := util.ExecTime(func() {
+		if err := index.IndexDocument(doc); err != nil {
+			t.Fatal(err)
+		} else {
+			json.Print("index", index)
+			json.Print("doc", doc)
+		}
+	})
+	log.Println("IndexDocument costs: ", duration)
 	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
 		t.Fatal(err)
 	} else {
@@ -105,12 +111,15 @@ func TestUpdateDocument(t *testing.T) {
 	}
 	//change the doc source.
 	doc.Source = map[string]interface{}{}
-	if err := index.IndexDocument(doc); err != nil {
-		t.Fatal(err)
-	} else {
-		json.Print("index same doc", index)
-		json.Print("doc", doc)
-	}
+	duration = util.ExecTime(func() {
+		if err := index.UpdateDocument(doc); err != nil {
+			t.Fatal(err)
+		} else {
+			json.Print("index", index)
+			json.Print("doc", doc)
+		}
+	})
+	log.Println("UpdateDocument costs: ", duration)
 	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
 		t.Fatal(err)
 	} else {
@@ -138,24 +147,32 @@ func TestUpdateDocument(t *testing.T) {
 		}
 	})
 	log.Println("Decoding json file costs: ", duration)
-	docs := make([]*Document, 10000, 10000)
+	log.Println("Total items: ", len(docsRaw))
+	docs := make([]*Document, 100000, 100000)
 	for i := 0; i < len(docs); i++ {
 		docs[i] = NewDocument(docsRaw[i])
 		docs[i].WithID(docsRaw[i]["id"].(string))
 	}
 	duration = util.ExecTime(func() {
 		var wg sync.WaitGroup
-		pieces := 100 //divided into pieces
-		base := len(docs) / pieces
+		batchSize := 1000               //one batch size
+		pieces := len(docs) / batchSize //divided into pieces
 		for k := 0; k < pieces; k++ {
 			wg.Add(1)
 			go func(k int) {
-				if err := index.BulkDocuments(docs[k*base : (k+1)*base]); err != nil {
+				if err := index.BulkDocuments(docs[k*batchSize : (k+1)*batchSize]); err != nil {
 					fmt.Println(err)
 				}
-				log.Printf("piece %d done!", k)
+				log.Printf("piece %d done!\n", k)
 				wg.Done()
 			}(k)
+		}
+		//bulk remaining
+		if len(docs)%batchSize > 0 {
+			if err := index.BulkDocuments(docs[pieces*batchSize:]); err != nil {
+				fmt.Println(err)
+			}
+			log.Println("remaining piece done!")
 		}
 		wg.Wait()
 	})
@@ -163,13 +180,9 @@ func TestUpdateDocument(t *testing.T) {
 	if err := index.UpdateMetadata(); err != nil {
 		t.Fatal(err)
 	}
-	//if ids, err := index.GetIDsByKeyword("数学"); err != nil {
-	//	t.Fatal(err)
-	//} else {
-	//	json.Print("数学", ids)
-	//}
-	log.Println("Close Index.")
-	if err := index.Close(); err != nil {
+	time.Sleep(15 * time.Minute)
+	log.Println("Delete Index.")
+	if err := index.Delete(); err != nil {
 		t.Fatal(err)
 	}
 }*/
