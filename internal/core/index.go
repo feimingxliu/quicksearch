@@ -33,6 +33,8 @@ type Index struct {
 	tokenizer     ptokenizer.Tokenizer
 }
 
+//TODO: support shards.
+
 type options struct {
 	name          string
 	storageType   string

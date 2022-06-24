@@ -11,6 +11,7 @@ func TestFlatten(t *testing.T) {
 	json.Print("Flatten map", output)
 }
 
+//go test -v github.com/feimingxliu/quicksearch/pkg/util/maps -bench 'Flatten$' -benchmem
 func BenchmarkFlatten(b *testing.B) {
 	for i := 0; i <= b.N; i++ {
 		_ = Flatten(nestedMap)

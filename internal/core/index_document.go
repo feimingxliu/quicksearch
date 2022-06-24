@@ -181,6 +181,7 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 			doc.KeyWords = append(doc.KeyWords, kw)
 		}
 		copyDoc := doc
+		//Note: use Goroutine may run out of memory when bulk large quantity of docs.
 		g.Go(func() error {
 			err := index.MapKeywordsDoc(copyDoc.KeyWords, copyDoc.ID)
 			if err != nil {
@@ -194,7 +195,7 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 			if err != nil {
 				return err
 			}
-			if err = index.store.Set(copyDoc.ID, b); err != nil {
+			if err = index.store.Batch([]string{copyDoc.ID}, [][]byte{b}); err != nil {
 				return err
 			}
 			return nil

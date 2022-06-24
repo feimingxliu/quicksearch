@@ -8,6 +8,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 )
 
 //go test -v -timeout 0 github.com/feimingxliu/quicksearch/internal/core  -run 'Search$'
@@ -23,7 +24,7 @@ func TestSearch(t *testing.T) {
 		res = index.Search(
 			NewSearchOption().
 				SetQuery("数学，是研究数量、结构以及空间等概念及其变化的一门学科，从某种角度看属于形式科学的一种。").
-				SetTopN(10).SetTimeout(0),
+				SetTopN(10).SetTimeout(1 * time.Second),
 		)
 	})
 	log.Println("Search costs: ", duration)
