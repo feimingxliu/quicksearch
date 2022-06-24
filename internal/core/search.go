@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
+	"github.com/feimingxliu/quicksearch/pkg/util/slices"
 	"golang.org/x/sync/errgroup"
 	"sort"
 	"time"
@@ -45,14 +46,17 @@ func (index *Index) Search(option *SearchOption) *SearchResult {
 		return &SearchResult{Error: errors.WithStack(err).Error()}
 	}
 	var (
-		startTime  = time.Now()                                                      //record search starts.
-		isTimeout  = false                                                           //if search timeout.
-		keywords   = index.tokenizer.KeywordsWeight(option.query, len(option.query)) //keyword with weight in query.
-		docIDScore = make(map[string]float64)                                        //store unique doc IDs along with their scores.
-		pctx       context.Context                                                   //parent context.
-		cancel     context.CancelFunc                                                //cancel func.
-		c          = make(chan *idScore, len(keywords)*10)                           //chan between docID producer and consumer.
-		done       = make(chan struct{}, len(keywords))                              //to inform consumer that a producer has done.
+		startTime = time.Now()                                                      //record search starts.
+		isTimeout = false                                                           //if search timeout.
+		keywords  = index.tokenizer.KeywordsWeight(option.query, len(option.query)) //keyword with weight in query.
+		addition  = slices.DifferenceStr(index.tokenizer.Tokenize(option.query),
+			index.tokenizer.Keywords(option.query, len(option.query))) //secondary tokens in query.
+		factor     = float64(len(addition)) / float64(len(keywords)+len(addition)) //used to compute score.
+		docIDScore = make(map[string]float64)                                      //store unique doc IDs along with their scores.
+		pctx       context.Context                                                 //parent context.
+		cancel     context.CancelFunc                                              //cancel func.
+		c          = make(chan *idScore, len(keywords)*10)                         //chan between docID producer and consumer.
+		done       = make(chan struct{}, len(keywords))                            //to inform consumer that a producer has done.
 	)
 	defer func() {
 		close(c)
@@ -136,6 +140,11 @@ func (index *Index) Search(option *SearchOption) *SearchResult {
 	for docID, score := range docIDScore {
 		doc, err := index.RetrieveDocument(docID)
 		if err == nil && doc != nil {
+			for _, ad := range addition {
+				if slices.ContainsStr(doc.KeyWords, ad) {
+					score += score / float64(len(keywords)) * factor
+				}
+			}
 			hits = append(hits, &Hit{
 				Index:     doc.IndexName,
 				Type:      "_doc",
