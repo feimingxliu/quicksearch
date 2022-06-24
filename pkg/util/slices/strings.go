@@ -1,17 +1,14 @@
 package slices
 
+import "strings"
+
 func ContainsStr(arr []string, str string) bool {
-	for i := range arr {
-		if arr[i] == str {
-			return true
-		}
-	}
-	return false
+	return SearchStr(arr, str) >= 0
 }
 
 func DistinctStr(arr []string) []string {
-	distinctSlice := make([]string, 0)
-	m := make(map[string]struct{})
+	distinctSlice := make([]string, 0, len(arr))
+	m := make(map[string]struct{}, len(arr))
 	for i := range arr {
 		if _, ok := m[arr[i]]; !ok {
 			m[arr[i]] = struct{}{}
@@ -23,29 +20,55 @@ func DistinctStr(arr []string) []string {
 
 //FilterStr applies f to each element in arr.
 func FilterStr(arr []string, f func(string) string) []string {
-	fArr := make([]string, 0)
 	for i := range arr {
-		fArr = append(fArr, f(arr[i]))
+		arr[i] = f(arr[i])
 	}
-	return fArr
+	return arr
 }
 
 func RemoveEmptyStr(arr []string) []string {
-	a := make([]string, 0)
-	for i := range arr {
-		if len(arr[i]) > 0 {
-			a = append(a, arr[i])
+	for i := 0; i < len(arr); {
+		if arr[i] == "" {
+			arr = append(arr[:i], arr[i+1:]...)
+		} else {
+			i++
 		}
 	}
-	return a
+	return arr
 }
 
 func RemoveSpecifiedStr(arr []string, remove string) []string {
-	a := make([]string, 0)
-	for i := range arr {
-		if arr[i] != remove {
-			a = append(a, arr[i])
+	if i := SearchStr(arr, remove); i >= 0 {
+		return append(arr[:i], arr[i+1:]...)
+	}
+	return arr
+}
+
+func SearchStr(arr []string, str string) int {
+	if len(arr) == 0 {
+		return -1
+	}
+	result := -1
+	for index, v := range arr {
+		if strings.Compare(v, str) == 0 {
+			result = index
+			break
 		}
 	}
-	return a
+	return result
+}
+
+//DifferenceStr return the difference set of `a-b`
+func DifferenceStr(a []string, b []string) []string {
+	ds := make([]string, 0, len(a))
+	m := make(map[string]struct{}, len(b))
+	for i := range b {
+		m[b[i]] = struct{}{}
+	}
+	for i := range a {
+		if _, ok := m[a[i]]; !ok {
+			ds = append(ds, a[i])
+		}
+	}
+	return ds
 }

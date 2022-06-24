@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+//TODO: separate Index and update.
+
 //IndexDocument adds a doc to the index.
 func (index *Index) IndexDocument(doc *Document) error {
 	if doc == nil {
@@ -132,6 +134,8 @@ func (index *Index) DeleteDocument(docID string) error {
 	//delete the doc.
 	return index.store.Delete(docID)
 }
+
+//TODO: optimize bulk, do not check for update.
 
 //BulkDocuments adds docs to the index.
 func (index *Index) BulkDocuments(docs []*Document) error {

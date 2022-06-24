@@ -11,7 +11,8 @@ import (
 	"time"
 )
 
-//go test -v -timeout 0 github.com/feimingxliu/quicksearch/internal/core  -run 'Search$'
+//go test -v -timeout 0 github.com/feimingxliu/quicksearch/internal/core  -run 'Search$' -memprofile mem.out
+//pprof -http=:8080 mem.out
 func TestSearch(t *testing.T) {
 	prepare(t)
 	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
