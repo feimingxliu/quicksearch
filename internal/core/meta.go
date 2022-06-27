@@ -10,7 +10,7 @@ import (
 var meta storager.Storager
 
 func InitMeta() {
-	switch strings.ToLower(config.Global.Storage.Type) {
+	switch strings.ToLower(config.Global.Storage.MetaType) {
 	case "bolt":
 		meta = storager.NewStorager(storager.Bolt, path.Join(config.Global.Storage.DataDir, "metadata", "bolt.db"))
 	default:

@@ -1,3 +1,6 @@
+env: "debug" # debug or prod.
 storage:
-  data-dir: "data"  #data directory
-  meta-type: "bolt" #the underlying storage to store metadata
+  data-dir: "data"  # data directory
+  meta-type: "bolt" # the underlying storage to store metadata
+http:
+  addr: "localhost:9200" # the http server listening at

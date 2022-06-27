@@ -1,6 +1,9 @@
 package errors
 
-import "errors"
+import (
+	"errors"
+	perrors "github.com/pkg/errors"
+)
 
 //logic error.
 var (
@@ -15,3 +18,7 @@ var (
 	ErrEmptyKey         = errors.New("Key cannot be empty")
 	ErrKeyValueNotMatch = errors.New("Keys and values not match")
 )
+
+func WithStack(err error) error {
+	return perrors.WithStack(err)
+}

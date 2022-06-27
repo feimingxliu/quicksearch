@@ -43,7 +43,7 @@ func (index *Index) Search(option *SearchOption) *SearchResult {
 		return nil
 	}
 	if err := index.Open(); err != nil {
-		return &SearchResult{Error: errors.WithStack(err).Error()}
+		return &SearchResult{Error: fmt.Sprintf("%+v", errors.WithStack(err))}
 	}
 	var (
 		startTime = time.Now()                                                      //record search starts.
@@ -132,7 +132,7 @@ func (index *Index) Search(option *SearchOption) *SearchResult {
 		})
 	}
 	if err := g.Wait(); err != nil {
-		return &SearchResult{Error: errors.WithStack(err).Error()}
+		return &SearchResult{Error: fmt.Sprintf("%+v", errors.WithStack(err))}
 	}
 	//fetch all docs.
 	hits := make([]*Hit, 0, len(docIDScore))
