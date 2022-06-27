@@ -61,7 +61,11 @@ func WithTokenizer(t string) Option {
 
 //NewIndex return an Index, which is opened and appended to Indices.
 func NewIndex(opts ...Option) *Index {
-	config := new(options)
+	// the default will be replaced by opts
+	config := &options{
+		storageType:   "bolt",
+		tokenizerType: "jieba",
+	}
 	for _, opt := range opts {
 		opt(config)
 	}

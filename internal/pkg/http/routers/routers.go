@@ -10,4 +10,11 @@ func RegisterRoutes(engine *gin.Engine) {
 		pprof := engine.Group("/debug/pprof")
 		registerPProf(pprof)
 	}
+	v1 := engine.Group("/api/v1")
+	{
+		index := v1.Group("/index")
+		registerIndexApi(index)
+		registerDocumentApi(index)
+		registerSearchApi(index)
+	}
 }
