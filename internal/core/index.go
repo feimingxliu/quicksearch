@@ -5,7 +5,6 @@ import (
 	"github.com/feimingxliu/quicksearch/internal/pkg/storager"
 	ptokenizer "github.com/feimingxliu/quicksearch/internal/pkg/tokenizer"
 	"github.com/feimingxliu/quicksearch/pkg/errors"
-	"github.com/feimingxliu/quicksearch/pkg/util/base64"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"os"
 	"path"
@@ -16,24 +15,23 @@ import (
 )
 
 type Index struct {
-	Name          string    `json:"name"`
-	StorageType   string    `json:"storage_type"`
-	TokenizerType string    `json:"tokenizer_type"`
-	DocNum        uint64    `json:"doc_num"`
-	DocTimeMin    int64     `json:"doc_time_min"` //indexed doc's min @timestamp (ns)
-	DocTimeMax    int64     `json:"doc_time_max"` //indexed doc's max @timestamp (ns)
-	CreateAt      time.Time `json:"create_at"`
-	UpdateAt      time.Time `json:"update_at"`
-	StorePath     string    `json:"store_path"`    //document storage file path
-	InvertedPath  string    `json:"inverted_path"` //inverted index storage file path
-	rwMutex       sync.RWMutex
-	open          bool
-	store         storager.Storager //for document storage
-	inverted      storager.Storager //for inverted index storage
-	tokenizer     ptokenizer.Tokenizer
+	Name           string    `json:"name"`
+	StorageType    string    `json:"storage_type"`
+	TokenizerType  string    `json:"tokenizer_type"`
+	DocNum         uint64    `json:"doc_num"`
+	DocTimeMin     int64     `json:"doc_time_min"` // indexed doc's min @timestamp (ns)
+	DocTimeMax     int64     `json:"doc_time_max"` // indexed doc's max @timestamp (ns)
+	CreateAt       time.Time `json:"create_at"`
+	UpdateAt       time.Time `json:"update_at"`
+	NumberOfShards int       `json:"number_of_shards"` // number of shards
+	StorePath      string    `json:"store_path"`       // index's document storage dir
+	InvertedPath   string    `json:"inverted_path"`    // inverted index storage dir
+	rwMutex        sync.RWMutex
+	open           bool
+	store          *Shards // for document storage
+	inverted       *Shards // for inverted index storage
+	tokenizer      ptokenizer.Tokenizer
 }
-
-//TODO: support shards.
 
 type options struct {
 	name          string
@@ -71,29 +69,42 @@ func NewIndex(opts ...Option) *Index {
 		return index
 	}
 	index := &Index{
-		Name:          config.name,
-		StorageType:   strings.ToLower(config.storageType),
-		TokenizerType: strings.ToLower(config.tokenizerType),
-		StorePath:     path.Join(pconfig.Global.Storage.DataDir, "indices", base64.Encode([]byte(config.name))),
-		InvertedPath:  path.Join(pconfig.Global.Storage.DataDir, "inverted", base64.Encode([]byte(config.name))),
-		CreateAt:      time.Now(),
-		UpdateAt:      time.Now(),
+		Name:           config.name,
+		StorageType:    strings.ToLower(config.storageType),
+		TokenizerType:  strings.ToLower(config.tokenizerType),
+		NumberOfShards: DefaultShards,
+		StorePath:      path.Join(pconfig.Global.Storage.DataDir, "indices", config.name),
+		InvertedPath:   path.Join(pconfig.Global.Storage.DataDir, "inverted", config.name),
+		CreateAt:       time.Now(),
+		UpdateAt:       time.Now(),
 	}
 	switch index.StorageType {
 	case "bolt":
-		index.store = storager.NewStorager(
-			storager.Bolt, index.StorePath,
-		)
-		index.inverted = storager.NewStorager(
-			storager.Bolt, index.InvertedPath,
-		)
+		index.store = NewShards(&ShardConfig{
+			Path:        index.StorePath,
+			IndexName:   index.Name,
+			StorageType: storager.Bolt,
+			NumOfShards: DefaultShards,
+		})
+		index.inverted = NewShards(&ShardConfig{
+			Path:        index.InvertedPath,
+			IndexName:   index.Name,
+			StorageType: storager.Bolt,
+			NumOfShards: DefaultShards,
+		})
 	default:
-		index.store = storager.NewStorager(
-			storager.Default, index.StorePath,
-		)
-		index.inverted = storager.NewStorager(
-			storager.Default, index.InvertedPath,
-		)
+		index.store = NewShards(&ShardConfig{
+			Path:        index.StorePath,
+			IndexName:   index.Name,
+			StorageType: storager.Bolt,
+			NumOfShards: DefaultShards,
+		})
+		index.inverted = NewShards(&ShardConfig{
+			Path:        index.InvertedPath,
+			IndexName:   index.Name,
+			StorageType: storager.Bolt,
+			NumOfShards: DefaultShards,
+		})
 	}
 	switch index.TokenizerType {
 	case "jieba":
@@ -169,19 +180,31 @@ func (index *Index) Open() error {
 		index.rwMutex.Lock()
 		switch index.StorageType {
 		case "bolt":
-			index.store = storager.NewStorager(
-				storager.Bolt, index.StorePath,
-			)
-			index.inverted = storager.NewStorager(
-				storager.Bolt, index.InvertedPath,
-			)
+			index.store = NewShards(&ShardConfig{
+				Path:        index.StorePath,
+				IndexName:   index.Name,
+				StorageType: storager.Bolt,
+				NumOfShards: DefaultShards,
+			})
+			index.inverted = NewShards(&ShardConfig{
+				Path:        index.InvertedPath,
+				IndexName:   index.Name,
+				StorageType: storager.Bolt,
+				NumOfShards: DefaultShards,
+			})
 		default:
-			index.store = storager.NewStorager(
-				storager.Default, index.StorePath,
-			)
-			index.inverted = storager.NewStorager(
-				storager.Default, index.InvertedPath,
-			)
+			index.store = NewShards(&ShardConfig{
+				Path:        index.StorePath,
+				IndexName:   index.Name,
+				StorageType: storager.Bolt,
+				NumOfShards: DefaultShards,
+			})
+			index.inverted = NewShards(&ShardConfig{
+				Path:        index.InvertedPath,
+				IndexName:   index.Name,
+				StorageType: storager.Bolt,
+				NumOfShards: DefaultShards,
+			})
 		}
 		switch index.TokenizerType {
 		case "jieba":
@@ -264,11 +287,11 @@ func (index *Index) Delete() error {
 	if err := index.inverted.Close(); err != nil {
 		return err
 	}
-	//remove db file.
-	if err := os.Remove(index.StorePath); err != nil {
+	//remove dir.
+	if err := os.RemoveAll(index.StorePath); err != nil {
 		return err
 	}
-	if err := os.Remove(index.InvertedPath); err != nil {
+	if err := os.RemoveAll(index.InvertedPath); err != nil {
 		return err
 	}
 	return nil
@@ -288,14 +311,14 @@ func (index *Index) Clone(name string) error {
 		DocTimeMax:    index.DocTimeMax,
 		CreateAt:      time.Now(),
 		UpdateAt:      time.Now(),
-		StorePath:     path.Join(path.Dir(index.StorePath), base64.Encode([]byte(name))),
-		InvertedPath:  path.Join(path.Dir(index.InvertedPath), base64.Encode([]byte(name))),
+		StorePath:     path.Join(path.Dir(index.StorePath), name),
+		InvertedPath:  path.Join(path.Dir(index.InvertedPath), name),
 	}
 	//clone storage file.
-	if err := index.store.CloneDatabase(clone.StorePath); err != nil {
+	if err := index.store.CloneIndex(clone.StorePath); err != nil {
 		return err
 	}
-	if err := index.inverted.CloneDatabase(clone.InvertedPath); err != nil {
+	if err := index.inverted.CloneIndex(clone.InvertedPath); err != nil {
 		return err
 	}
 	//write metadata.

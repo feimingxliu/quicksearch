@@ -52,7 +52,7 @@ func indexSomeDocs(t *testing.T) {
 	})
 	log.Println("Decoding json file costs: ", duration)
 	log.Println("Total items: ", len(docsRaw))
-	docs := make([]*Document, 10000, 10000)
+	docs := make([]*Document, 100000, 100000)
 	for i := 0; i < len(docs); i++ {
 		docs[i] = NewDocument(docsRaw[i])
 		docs[i].WithID(docsRaw[i]["id"].(string))
