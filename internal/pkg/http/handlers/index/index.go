@@ -18,6 +18,26 @@ func Create(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, types.Common{Acknowledged: true})
 }
 
+func Clone(ctx *gin.Context) {
+
+}
+
+func Open(ctx *gin.Context) {
+
+}
+
+func Close(ctx *gin.Context) {
+
+}
+
+func Delete(ctx *gin.Context) {
+
+}
+
+func Get(ctx *gin.Context) {
+
+}
+
 func List(ctx *gin.Context) {
 	indices, err := core.ListIndices()
 	if err != nil {
@@ -30,4 +50,8 @@ func List(ctx *gin.Context) {
 		},
 		Indices: indices,
 	})
+}
+
+func Update(ctx *gin.Context) {
+	//TODO
 }

@@ -48,3 +48,11 @@ func Update(ctx *gin.Context) {
 func Bulk(ctx *gin.Context) {
 
 }
+
+func Get(ctx *gin.Context) {
+
+}
+
+func Delete(ctx *gin.Context) {
+
+}
