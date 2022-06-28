@@ -1,8 +1,10 @@
 package main
 
 import (
+	"compress/gzip"
 	"encoding/xml"
 	"flag"
+	"fmt"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/feimingxliu/quicksearch/pkg/util/uuid"
 	"github.com/go-creed/sat"
@@ -12,52 +14,66 @@ import (
 )
 
 var (
-	inputXml   = "test/testdata/zhwiki-20220601-abstract.xml"
+	inputXmlGz = "test/testdata/zhwiki-20220601-abstract.xml.gz"
 	outputJson = "test/testdata/zhwiki-20220601-abstract.json"
 )
 
 func init() {
-	inputXml = *flag.String("input", inputXml, "the input xml file")
+	inputXmlGz = *flag.String("input", inputXmlGz, "the input xml file")
 	outputJson = *flag.String("output", outputJson, "the output json file")
 	flag.Parse()
 }
 
 func main() {
-	log.Println("loading xml source file ......")
-	inputFile, err := os.OpenFile(inputXml, os.O_RDONLY, 0600)
+	log.Println("loading xml.gz source file ......")
+	inputFile, err := os.OpenFile(inputXmlGz, os.O_RDONLY, 0600)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer inputFile.Close()
-	xmlDecoder := xml.NewDecoder(inputFile)
-	dump := struct {
-		Documents []document `xml:"doc"`
-	}{}
-	log.Println("Decoding xml into struct ......")
-	err = xmlDecoder.Decode(&dump)
-	docs := dump.Documents
-	if err != nil {
-		log.Fatalln(err)
-	}
-	log.Println("Adding additional ID field, convert url and 'cht to chs' ......")
-	dicter := sat.DefaultDict()
-	for i := range docs {
-		docs[i].ID = uuid.GetUUID()
-		docs[i].URL, _ = url.QueryUnescape(docs[i].URL)
-		docs[i].URL = dicter.Read(docs[i].URL)
-		docs[i].Title = dicter.Read(docs[i].Title)
-		docs[i].Text = dicter.Read(docs[i].Text)
-	}
-	log.Println("Creating json output file ......")
+	log.Println("Creating bulk json output file ......")
 	outputFile, err := os.OpenFile(outputJson, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer outputFile.Close()
-	jsonEncoder := json.NewEncoder(outputFile)
-	jsonEncoder.SetIndent("", " ")
-	log.Println("Writing data into json file ......")
-	err = jsonEncoder.Encode(docs)
+	log.Println("Processing ......")
+	r, err := gzip.NewReader(inputFile)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	doc := new(document)
+	dicter := sat.DefaultDict()
+	var buf []byte
+	var count uint
+	xmlDecoder := xml.NewDecoder(r)
+	// use stream to process.
+	for {
+		token, _ := xmlDecoder.Token()
+		if token == nil {
+			break
+		}
+		switch token := token.(type) {
+		case xml.StartElement:
+			if token.Name.Local == "doc" {
+				count++
+				err = xmlDecoder.DecodeElement(doc, &token)
+				if err != nil {
+					log.Fatalln(err)
+				}
+				doc.ID = uuid.GetUUID()
+				doc.URL, _ = url.QueryUnescape(doc.URL)
+				doc.URL = dicter.Read(doc.URL)
+				doc.Title = dicter.Read(doc.Title)
+				doc.Text = dicter.Read(doc.Text)
+				buf, _ = json.Marshal(doc)
+				_, _ = outputFile.Write(buf)
+				_, _ = outputFile.WriteString("\n")
+				fmt.Printf("Total proccessed item: %d\r", count)
+			}
+		}
+	}
+	err = outputFile.Sync()
 	if err != nil {
 		log.Fatalln(err)
 	}

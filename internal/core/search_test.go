@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/feimingxliu/quicksearch/pkg/util"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
@@ -42,21 +43,19 @@ func indexSomeDocs(t *testing.T) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	decoder := json.NewDecoder(f)
-	docsRaw := make([]map[string]interface{}, 0)
-	log.Println("Decoding......")
+	const numOfDoc = 100000
+	docs := make([]*Document, 0, numOfDoc)
+	scanner := bufio.NewScanner(f)
 	duration := util.ExecTime(func() {
-		if err := decoder.Decode(&docsRaw); err != nil {
-			t.Fatal(err)
+		for i := 0; i < numOfDoc && scanner.Scan(); i++ {
+			m := make(map[string]interface{})
+			if err := json.Unmarshal(scanner.Bytes(), &m); err != nil {
+				t.Fatal(err)
+			}
+			docs = append(docs, NewDocument(m).WithID(m["id"].(string)))
 		}
 	})
-	log.Println("Decoding json file costs: ", duration)
-	log.Println("Total items: ", len(docsRaw))
-	docs := make([]*Document, 100000, 100000)
-	for i := 0; i < len(docs); i++ {
-		docs[i] = NewDocument(docsRaw[i])
-		docs[i].WithID(docsRaw[i]["id"].(string))
-	}
+	log.Println("Parsing json file costs: ", duration)
 	duration = util.ExecTime(func() {
 		var wg sync.WaitGroup
 		batchSize := 1000               //one batch size

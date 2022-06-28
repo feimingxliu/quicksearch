@@ -48,13 +48,7 @@ git lfs pull
 
 in the project root to fetch the large test file.
 
-The you should extract the `.gz` file by:
-
-```sh
-gzip -dk test/testdata/zhwiki-20220601-abstract.xml.gz
-```
-
-This will generate `test/testdata/zhwiki-20220601-abstract.xml`, the you can the tool to genetate the `json` format:
+Then you should run
 
 ```sh
 go run github.com/feimingxliu/quicksearch/cmd/xmltojson
