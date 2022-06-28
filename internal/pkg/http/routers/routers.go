@@ -2,6 +2,7 @@ package routers
 
 import (
 	"github.com/feimingxliu/quicksearch/internal/config"
+	"github.com/feimingxliu/quicksearch/pkg/about"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,6 +13,8 @@ func RegisterRoutes(engine *gin.Engine) {
 	}
 	v1 := engine.Group("/api/v1")
 	{
+		//version
+		v1.GET("/_version", about.GetVersion)
 		index := v1.Group("/index")
 		registerIndexApi(index)
 		registerDocumentApi(index)

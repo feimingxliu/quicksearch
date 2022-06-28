@@ -43,7 +43,7 @@ func indexSomeDocs(t *testing.T) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	const numOfDoc = 100000
+	const numOfDoc = 10000
 	docs := make([]*Document, 0, numOfDoc)
 	scanner := bufio.NewScanner(f)
 	duration := util.ExecTime(func() {

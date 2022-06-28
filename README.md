@@ -59,7 +59,7 @@ The above command will generate `test/testdata/zhwiki-20220601-abstract.json`, y
 In the end, you can run all the tests by:
 
 ```sh
-go test ./...
+go test -timeout 0 ./...
 ```
 
 If everything works well, you will see a `ok` in the end of output.
