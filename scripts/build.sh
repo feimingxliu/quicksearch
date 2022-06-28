@@ -1,3 +1,4 @@
+#!/bin/bash
 export VERSION=`git describe --tags --always`
 export BUILD_DATE=`date -u '+%Y-%m-%d %I:%M:%S'`
 export COMMIT_HASH=`git rev-parse HEAD`
