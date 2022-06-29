@@ -19,13 +19,15 @@ func TestSearch(t *testing.T) {
 	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
 	if index.DocNum == 0 {
 		indexSomeDocs(t)
+		// wait batches to trigger
+		time.Sleep(30 * time.Second)
 	}
 	json.Print("index", index)
 	var res *SearchResult
 	duration := util.ExecTime(func() {
 		res = index.Search(
 			NewSearchOption().
-				SetQuery("数学，是研究数量、结构以及空间等概念及其变化的一门学科，从某种角度看属于形式科学的一种。").
+				SetQuery("数学，是研究数量、结构以及空间等概念及其变化的一门学科，从某种角度看属於形式科学的一种。").
 				SetTopN(10).SetTimeout(1 * time.Second),
 		)
 	})

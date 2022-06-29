@@ -6,6 +6,7 @@ import (
 	"github.com/feimingxliu/quicksearch/pkg/util/slices"
 )
 
+//TODO: refacter the inverted index construction.
 //MapKeywordsDoc maps keywords to the doc.
 func (index *Index) MapKeywordsDoc(keywords []string, docID string) error {
 	if err := index.Open(); err != nil {

@@ -31,7 +31,7 @@ func Search(ctx *gin.Context) {
 	}
 	index, err := core.GetIndex(indexName)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, types.Common{Acknowledged: false, Error: fmt.Sprintf("%+v", err)})
+		ctx.JSON(http.StatusBadRequest, types.Common{Acknowledged: false, Error: fmt.Sprintf("%+v", err)})
 		return
 	}
 	option := &core.SearchOption{}

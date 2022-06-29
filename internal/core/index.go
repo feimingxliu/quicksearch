@@ -88,26 +88,26 @@ func NewIndex(opts ...Option) *Index {
 			Path:        index.StorePath,
 			IndexName:   index.Name,
 			StorageType: storager.Bolt,
-			NumOfShards: DefaultShards,
+			NumOfShards: index.NumberOfShards,
 		})
 		index.inverted = NewShards(&ShardConfig{
 			Path:        index.InvertedPath,
 			IndexName:   index.Name,
 			StorageType: storager.Bolt,
-			NumOfShards: DefaultShards,
+			NumOfShards: index.NumberOfShards,
 		})
 	default:
 		index.store = NewShards(&ShardConfig{
 			Path:        index.StorePath,
 			IndexName:   index.Name,
 			StorageType: storager.Bolt,
-			NumOfShards: DefaultShards,
+			NumOfShards: index.NumberOfShards,
 		})
 		index.inverted = NewShards(&ShardConfig{
 			Path:        index.InvertedPath,
 			IndexName:   index.Name,
 			StorageType: storager.Bolt,
-			NumOfShards: DefaultShards,
+			NumOfShards: index.NumberOfShards,
 		})
 	}
 	switch index.TokenizerType {
@@ -188,26 +188,26 @@ func (index *Index) Open() error {
 				Path:        index.StorePath,
 				IndexName:   index.Name,
 				StorageType: storager.Bolt,
-				NumOfShards: DefaultShards,
+				NumOfShards: index.NumberOfShards,
 			})
 			index.inverted = NewShards(&ShardConfig{
 				Path:        index.InvertedPath,
 				IndexName:   index.Name,
 				StorageType: storager.Bolt,
-				NumOfShards: DefaultShards,
+				NumOfShards: index.NumberOfShards,
 			})
 		default:
 			index.store = NewShards(&ShardConfig{
 				Path:        index.StorePath,
 				IndexName:   index.Name,
 				StorageType: storager.Bolt,
-				NumOfShards: DefaultShards,
+				NumOfShards: index.NumberOfShards,
 			})
 			index.inverted = NewShards(&ShardConfig{
 				Path:        index.InvertedPath,
 				IndexName:   index.Name,
 				StorageType: storager.Bolt,
-				NumOfShards: DefaultShards,
+				NumOfShards: index.NumberOfShards,
 			})
 		}
 		switch index.TokenizerType {
@@ -307,16 +307,17 @@ func (index *Index) Clone(name string) error {
 		return errors.ErrCloneIndexSameName
 	}
 	clone := &Index{
-		Name:          name,
-		StorageType:   index.StorageType,
-		TokenizerType: index.TokenizerType,
-		DocNum:        index.DocNum,
-		DocTimeMin:    index.DocTimeMin,
-		DocTimeMax:    index.DocTimeMax,
-		CreateAt:      time.Now(),
-		UpdateAt:      time.Now(),
-		StorePath:     path.Join(path.Dir(index.StorePath), name),
-		InvertedPath:  path.Join(path.Dir(index.InvertedPath), name),
+		Name:           name,
+		StorageType:    index.StorageType,
+		TokenizerType:  index.TokenizerType,
+		DocNum:         index.DocNum,
+		DocTimeMin:     index.DocTimeMin,
+		DocTimeMax:     index.DocTimeMax,
+		CreateAt:       time.Now(),
+		UpdateAt:       time.Now(),
+		NumberOfShards: index.NumberOfShards,
+		StorePath:      path.Join(path.Dir(index.StorePath), name),
+		InvertedPath:   path.Join(path.Dir(index.InvertedPath), name),
 	}
 	//clone storage file.
 	if err := index.store.CloneIndex(clone.StorePath); err != nil {

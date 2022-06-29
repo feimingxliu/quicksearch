@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	DefaultShards = 10 // default number of shards.
+	DefaultShards = 5 // default number of shards.
 )
 
 func NewShards(config *ShardConfig) *Shards {

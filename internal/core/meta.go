@@ -14,9 +14,9 @@ var meta storager.Storager
 func InitMeta() {
 	switch strings.ToLower(config.Global.Storage.MetaType) {
 	case "bolt":
-		meta = storager.NewStorager(storager.Bolt, path.Join(config.Global.Storage.DataDir, "metadata", "bolt.db"))
+		meta = storager.NewStorager(storager.Bolt, path.Join(config.Global.Storage.DataDir, "metadata", "meta"))
 	default:
-		meta = storager.NewStorager(storager.Default, path.Join(config.Global.Storage.DataDir, "metadata", "bolt.db"))
+		meta = storager.NewStorager(storager.Default, path.Join(config.Global.Storage.DataDir, "metadata", "meta"))
 	}
 	if err := loadAllIndices(); err != nil {
 		log.Fatalf("%+v\n", errors.WithStack(err))

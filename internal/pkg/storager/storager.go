@@ -2,6 +2,7 @@ package storager
 
 type StorageType int
 
+//TODO: support badger.
 //types of storager
 const (
 	Bolt StorageType = iota

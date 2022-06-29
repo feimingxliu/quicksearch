@@ -7,6 +7,11 @@ type Common struct {
 	Error        string `json:"_error,omitempty"`
 }
 
+type Index struct {
+	Common
+	*core.Index
+}
+
 type Indices struct {
 	Common
 	Indices []*core.Index `json:"indices"`
