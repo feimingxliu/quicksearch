@@ -7,13 +7,16 @@ require (
 	github.com/go-creed/sat v1.0.3
 	github.com/google/uuid v1.3.0
 	github.com/json-iterator/go v1.1.12
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/rs/xid v1.4.0
 	github.com/spf13/viper v1.12.0
 	github.com/yanyiwu/gojieba v1.1.2
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
+	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 )
+
+require github.com/syndtr/goleveldb v1.0.0
 
 require (
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
@@ -22,6 +25,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
 	github.com/goccy/go-json v0.9.7 // indirect
+	github.com/golang/snappy v0.0.3 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect

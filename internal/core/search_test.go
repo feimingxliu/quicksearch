@@ -20,7 +20,7 @@ func TestSearch(t *testing.T) {
 	if index.DocNum == 0 {
 		indexSomeDocs(t)
 		// wait batches to trigger
-		time.Sleep(30 * time.Second)
+		time.Sleep(10 * time.Second)
 	}
 	json.Print("index", index)
 	var res *SearchResult

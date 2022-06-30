@@ -19,7 +19,7 @@ func NewShards(config *ShardConfig) *Shards {
 	}
 	shards := &Shards{
 		path:        config.Path,
-		indexName:   config.IndexName,
+		indexUID:    config.IndexUID,
 		numOfShards: config.NumOfShards,
 		storages:    newStorages(config),
 	}
@@ -29,7 +29,7 @@ func NewShards(config *ShardConfig) *Shards {
 func newStorages(config *ShardConfig) []storager.Storager {
 	storages := make([]storager.Storager, 0, config.NumOfShards)
 	for i := 0; i < config.NumOfShards; i++ {
-		s := storager.NewStorager(config.StorageType, path.Join(config.Path, fmt.Sprintf("%s_%d", config.IndexName, i)))
+		s := storager.NewStorager(config.StorageType, path.Join(config.Path, fmt.Sprintf("%s_%d", config.IndexUID, i)))
 		storages = append(storages, s)
 	}
 	return storages
@@ -37,14 +37,14 @@ func newStorages(config *ShardConfig) []storager.Storager {
 
 type ShardConfig struct {
 	Path        string
-	IndexName   string
+	IndexUID    string
 	StorageType storager.StorageType
 	NumOfShards int
 }
 
 type Shards struct {
 	path        string
-	indexName   string
+	indexUID    string
 	numOfShards int
 	storages    []storager.Storager
 }

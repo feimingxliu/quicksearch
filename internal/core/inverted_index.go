@@ -1,40 +1,50 @@
 package core
 
 import (
-	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/feimingxliu/quicksearch/pkg/util/slices"
+	"github.com/patrickmn/go-cache"
+	"sync"
+	"time"
 )
 
-//TODO: refacter the inverted index construction.
+var (
+	DefaultExpiration = 30 * time.Second // time for key expiration in cache
+	CleanupInterval   = 1 * time.Minute  // time for clean expired key in cache
+	invertedRwMu      sync.RWMutex
+	invertedCache     = make(map[*Index]*cache.Cache)
+)
+
 //MapKeywordsDoc maps keywords to the doc.
 func (index *Index) MapKeywordsDoc(keywords []string, docID string) error {
 	if err := index.Open(); err != nil {
 		return err
 	}
-	keys := make([]string, 0, len(keywords))
-	values := make([][]byte, 0, len(keywords))
+	var keys []string
+	var values [][]byte
+	c := invertedCache[index]
 	for _, keyword := range keywords {
 		if len(keyword) == 0 {
 			continue
 		}
-		bids, err := index.inverted.Get(keyword)
 		var ids []string
-		//not exits now.
-		if err == errors.ErrKeyNotFound {
-			ids = make([]string, 0, 1)
-		}
-		if bids != nil {
-			err = json.Unmarshal(bids, &ids)
-			if err != nil {
-				return err
+		// search in cache first
+		v, found := c.Get(keyword)
+		if found {
+			ids = v.([]string)
+		} else {
+			bids, _ := index.inverted.Get(keyword)
+			if bids != nil {
+				_ = json.Unmarshal(bids, &ids)
 			}
 		}
 		if slices.ContainsStr(ids, docID) {
 			continue
 		}
 		ids = append(ids, docID)
-		bids, err = json.Marshal(ids)
+		// load into cache
+		c.Set(keyword, ids, DefaultExpiration)
+		bids, err := json.Marshal(ids)
 		if err != nil {
 			return err
 		}
@@ -53,26 +63,28 @@ func (index *Index) UnMapKeywordsDoc(keywords []string, docID string) error {
 	if err := index.Open(); err != nil {
 		return err
 	}
-	keys := make([]string, 0, len(keywords))
-	values := make([][]byte, 0, len(keywords))
+	var keys []string
+	var values [][]byte
+	c := invertedCache[index]
 	for _, keyword := range keywords {
 		if len(keyword) == 0 {
 			continue
 		}
-		bids, err := index.inverted.Get(keyword)
 		var ids []string
-		if err == errors.ErrKeyNotFound {
-			//this can never happen logically.
-			continue
-		}
-		if bids != nil {
-			err = json.Unmarshal(bids, &ids)
-			if err != nil {
-				return err
+		// search in cache first
+		v, found := c.Get(keyword)
+		if found {
+			ids = v.([]string)
+		} else {
+			bids, _ := index.inverted.Get(keyword)
+			if bids != nil {
+				_ = json.Unmarshal(bids, &ids)
 			}
 		}
 		ids = slices.RemoveSpecifiedStr(ids, docID)
-		bids, err = json.Marshal(ids)
+		// load into cache
+		c.Set(keyword, ids, DefaultExpiration)
+		bids, err := json.Marshal(ids)
 		if err != nil {
 			return err
 		}
@@ -91,17 +103,17 @@ func (index *Index) GetIDsByKeyword(keyword string) ([]string, error) {
 	if err := index.Open(); err != nil {
 		return nil, err
 	}
-	bids, err := index.inverted.Get(keyword)
-	if err != nil {
-		if err == errors.ErrKeyNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
 	var ids []string
-	err = json.Unmarshal(bids, &ids)
-	if err != nil {
-		return nil, err
+	c := invertedCache[index]
+	// search in cache first
+	v, found := c.Get(keyword)
+	if found {
+		ids = v.([]string)
+	} else {
+		bids, _ := index.inverted.Get(keyword)
+		if bids != nil {
+			_ = json.Unmarshal(bids, &ids)
+		}
 	}
 	return ids, nil
 }

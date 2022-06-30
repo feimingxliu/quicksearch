@@ -67,6 +67,9 @@ func (b *bolt) List() ([][]byte, error) {
 }
 
 func (b *bolt) Get(key string) ([]byte, error) {
+	if len(key) == 0 {
+		return nil, errors.ErrEmptyKey
+	}
 	var data []byte
 	err := b.db.View(func(txn *bbolt.Tx) error {
 		b := txn.Bucket(defaultBucket)

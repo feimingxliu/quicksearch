@@ -6,6 +6,8 @@ import (
 	ptokenizer "github.com/feimingxliu/quicksearch/internal/pkg/tokenizer"
 	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
+	"github.com/feimingxliu/quicksearch/pkg/util/uuid"
+	"github.com/patrickmn/go-cache"
 	"os"
 	"path"
 	"strings"
@@ -15,8 +17,9 @@ import (
 )
 
 type Index struct {
+	UID            string    `json:"uid"`
 	Name           string    `json:"name"`
-	StorageType    string    `json:"storage_type"`
+	StorageType    string    `json:"storage_type"` // just for docs storage, inverted index not included.
 	TokenizerType  string    `json:"tokenizer_type"`
 	DocNum         uint64    `json:"doc_num"`
 	DocTimeMin     int64     `json:"doc_time_min"` // indexed doc's min @timestamp (ns)
@@ -72,54 +75,19 @@ func NewIndex(opts ...Option) *Index {
 	if index, err := GetIndex(config.name); err == nil && index != nil {
 		return index
 	}
+	uid := uuid.GetXID()
 	index := &Index{
+		UID:            uid,
 		Name:           config.name,
 		StorageType:    strings.ToLower(config.storageType),
 		TokenizerType:  strings.ToLower(config.tokenizerType),
 		NumberOfShards: DefaultShards,
-		StorePath:      path.Join(pconfig.Global.Storage.DataDir, "indices", config.name),
-		InvertedPath:   path.Join(pconfig.Global.Storage.DataDir, "inverted", config.name),
+		StorePath:      path.Join(pconfig.Global.Storage.DataDir, "indices", uid),
+		InvertedPath:   path.Join(pconfig.Global.Storage.DataDir, "inverted", uid),
 		CreateAt:       time.Now(),
 		UpdateAt:       time.Now(),
 	}
-	switch index.StorageType {
-	case "bolt":
-		index.store = NewShards(&ShardConfig{
-			Path:        index.StorePath,
-			IndexName:   index.Name,
-			StorageType: storager.Bolt,
-			NumOfShards: index.NumberOfShards,
-		})
-		index.inverted = NewShards(&ShardConfig{
-			Path:        index.InvertedPath,
-			IndexName:   index.Name,
-			StorageType: storager.Bolt,
-			NumOfShards: index.NumberOfShards,
-		})
-	default:
-		index.store = NewShards(&ShardConfig{
-			Path:        index.StorePath,
-			IndexName:   index.Name,
-			StorageType: storager.Bolt,
-			NumOfShards: index.NumberOfShards,
-		})
-		index.inverted = NewShards(&ShardConfig{
-			Path:        index.InvertedPath,
-			IndexName:   index.Name,
-			StorageType: storager.Bolt,
-			NumOfShards: index.NumberOfShards,
-		})
-	}
-	switch index.TokenizerType {
-	case "jieba":
-		index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Jieba)
-	default:
-		index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Default)
-	}
-	index.open = true
-	indicesRwMu.Lock()
-	Indices[config.name] = index
-	indicesRwMu.Unlock()
+	_ = index.Open()
 	//store metadata.
 	_ = index.UpdateMetadata()
 	return index
@@ -169,7 +137,48 @@ func GetIndex(name string) (*Index, error) {
 	return index, nil
 }
 
-//Open open the index as well as append to the Indices.
+func (index *Index) initStorage() {
+	switch index.StorageType {
+	case "bolt":
+		index.store = NewShards(&ShardConfig{
+			Path:        index.StorePath,
+			IndexUID:    index.UID,
+			StorageType: storager.Bolt,
+			NumOfShards: index.NumberOfShards,
+		})
+	case "leveldb":
+		index.store = NewShards(&ShardConfig{
+			Path:        index.StorePath,
+			IndexUID:    index.UID,
+			StorageType: storager.Leveldb,
+			NumOfShards: index.NumberOfShards,
+		})
+	default:
+		index.store = NewShards(&ShardConfig{
+			Path:        index.StorePath,
+			IndexUID:    index.UID,
+			StorageType: storager.Leveldb,
+			NumOfShards: index.NumberOfShards,
+		})
+	}
+	index.inverted = NewShards(&ShardConfig{
+		Path:        index.InvertedPath,
+		IndexUID:    index.UID,
+		StorageType: storager.Leveldb,
+		NumOfShards: index.NumberOfShards,
+	})
+}
+
+func (index *Index) initTokenizer() {
+	switch index.TokenizerType {
+	case "jieba":
+		index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Jieba)
+	default:
+		index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Default)
+	}
+}
+
+//Open open the index, append to the Indices and init the cache.
 func (index *Index) Open() error {
 	{
 		index.rwMutex.RLock()
@@ -182,40 +191,8 @@ func (index *Index) Open() error {
 
 	{
 		index.rwMutex.Lock()
-		switch index.StorageType {
-		case "bolt":
-			index.store = NewShards(&ShardConfig{
-				Path:        index.StorePath,
-				IndexName:   index.Name,
-				StorageType: storager.Bolt,
-				NumOfShards: index.NumberOfShards,
-			})
-			index.inverted = NewShards(&ShardConfig{
-				Path:        index.InvertedPath,
-				IndexName:   index.Name,
-				StorageType: storager.Bolt,
-				NumOfShards: index.NumberOfShards,
-			})
-		default:
-			index.store = NewShards(&ShardConfig{
-				Path:        index.StorePath,
-				IndexName:   index.Name,
-				StorageType: storager.Bolt,
-				NumOfShards: index.NumberOfShards,
-			})
-			index.inverted = NewShards(&ShardConfig{
-				Path:        index.InvertedPath,
-				IndexName:   index.Name,
-				StorageType: storager.Bolt,
-				NumOfShards: index.NumberOfShards,
-			})
-		}
-		switch index.TokenizerType {
-		case "jieba":
-			index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Jieba)
-		default:
-			index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Default)
-		}
+		index.initStorage()
+		index.initTokenizer()
 		index.open = true
 		index.rwMutex.Unlock()
 	}
@@ -226,10 +203,16 @@ func (index *Index) Open() error {
 		indicesRwMu.Unlock()
 	}
 
+	{
+		invertedRwMu.Lock()
+		invertedCache[index] = cache.New(DefaultExpiration, CleanupInterval)
+		invertedRwMu.Unlock()
+	}
+
 	return nil
 }
 
-//Close closes index and release the related resource, including remove from Indices.
+//Close closes index and release the related resource, including remove from Indices and delete the cache.
 func (index *Index) Close() error {
 	{
 		index.rwMutex.RLock()
@@ -257,6 +240,12 @@ func (index *Index) Close() error {
 		indicesRwMu.Lock()
 		delete(Indices, index.Name)
 		indicesRwMu.Unlock()
+	}
+
+	{
+		invertedRwMu.Lock()
+		delete(invertedCache, index)
+		invertedRwMu.Unlock()
 	}
 
 	return nil
@@ -306,7 +295,9 @@ func (index *Index) Clone(name string) error {
 	if name == index.Name {
 		return errors.ErrCloneIndexSameName
 	}
+	uid := uuid.GetXID()
 	clone := &Index{
+		UID:            uid,
 		Name:           name,
 		StorageType:    index.StorageType,
 		TokenizerType:  index.TokenizerType,
@@ -316,8 +307,8 @@ func (index *Index) Clone(name string) error {
 		CreateAt:       time.Now(),
 		UpdateAt:       time.Now(),
 		NumberOfShards: index.NumberOfShards,
-		StorePath:      path.Join(path.Dir(index.StorePath), name),
-		InvertedPath:   path.Join(path.Dir(index.InvertedPath), name),
+		StorePath:      path.Join(path.Dir(index.StorePath), uid),
+		InvertedPath:   path.Join(path.Dir(index.InvertedPath), uid),
 	}
 	//clone storage file.
 	if err := index.store.CloneIndex(clone.StorePath); err != nil {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/feimingxliu/quicksearch/pkg/errors"
-	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/feimingxliu/quicksearch/pkg/util/slices"
 	"golang.org/x/sync/errgroup"
 	"sort"
@@ -77,15 +76,9 @@ func (index *Index) Search(option *SearchOption) *SearchResult {
 			defer func() {
 				done <- struct{}{}
 			}()
-			bids, err := index.inverted.Get(keywords[j].Word)
+			ids, err := index.GetIDsByKeyword(keywords[j].Word)
 			if err != nil {
-				return nil
-			}
-			var ids []string
-			if bids != nil {
-				if err := json.Unmarshal(bids, &ids); err != nil {
-					return err
-				}
+				return err
 			}
 			var idx int
 			for {
