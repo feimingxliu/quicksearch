@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+// TODO: use bleve to index the docs.
+
 type Index struct {
 	UID            string    `json:"uid"`
 	Name           string    `json:"name"`
