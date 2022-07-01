@@ -1,6 +1,9 @@
 package slices
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 func ContainsStr(arr []string, str string) bool {
 	return SearchStr(arr, str) >= 0
@@ -35,6 +38,11 @@ func RemoveEmptyStr(arr []string) []string {
 		}
 	}
 	return arr
+}
+
+func RemovePunctuation(str string) string {
+	reg := regexp.MustCompile(`\p{P}+`)
+	return reg.ReplaceAllString(str, "")
 }
 
 func RemoveSpecifiedStr(arr []string, remove string) []string {

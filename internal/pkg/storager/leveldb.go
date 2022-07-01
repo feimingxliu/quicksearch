@@ -73,7 +73,7 @@ func (l goleveldb) DeleteAll() error {
 	batch := new(leveldb.Batch)
 	iter := l.db.NewIterator(nil, nil)
 	for iter.Next() {
-		var k []byte
+		k := make([]byte, len(iter.Key()))
 		copy(k, iter.Key())
 		batch.Delete(k)
 	}
@@ -92,7 +92,8 @@ func (l goleveldb) CloneDatabase(newPath string) error {
 	batch := new(leveldb.Batch)
 	iter := l.db.NewIterator(nil, nil)
 	for iter.Next() {
-		var k, v []byte
+		k := make([]byte, len(iter.Key()))
+		v := make([]byte, len(iter.Value()))
 		copy(k, iter.Key())
 		copy(v, iter.Value())
 		batch.Put(k, v)

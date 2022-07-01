@@ -40,7 +40,7 @@ func (index *Index) IndexDocument(doc *Document) error {
 		s := fmt.Sprint(value)
 		//filter blank token.
 		kws := slices.RemoveEmptyStr(slices.FilterStr(index.tokenizer.Tokenize(s), func(token string) string {
-			return strings.TrimSpace(token)
+			return strings.TrimSpace(slices.RemovePunctuation(token))
 		}))
 		for _, token := range kws {
 			if _, ok := keywords[token]; !ok {
@@ -209,7 +209,7 @@ func (index *Index) BulkDocuments(docs []*Document) error {
 			s := fmt.Sprint(value)
 			//filter the key char '/' and blank token.
 			kws := slices.RemoveEmptyStr(slices.FilterStr(index.tokenizer.Tokenize(s), func(token string) string {
-				return strings.TrimSpace(token)
+				return strings.TrimSpace(slices.RemovePunctuation(token))
 			}))
 			keywords = append(keywords, kws...)
 		}

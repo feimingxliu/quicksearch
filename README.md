@@ -1,10 +1,10 @@
-### QuickSearch
+## QuickSearch
 
-#### Getting Started
+### Getting Started
 
 TODO
 
-#### Run or build from source
+### Run or build from source
 
 To run the `quicksearch` from source, clone the repo firstly.
 
@@ -13,7 +13,7 @@ git clone git@github.com:feimingxliu/quicksearch.git
 # or use 'git clone https://github.com/feimingxliu/quicksearch.git' if you don't set SSH key.
 ```
 
-The download the dependencies.
+Then download the dependencies.
 
 ```sh
 cd quicksearch && go mod tidy -compat=1.17 # go version >= 1.17
@@ -37,7 +37,7 @@ Run binary:
 bin/quicksearch -c configs/config.yaml
 ```
 
-#### Tests
+### Tests
 
 The test use some testdata which stores with [git-lfs](https://git-lfs.github.com/). After you have installed
 the [git-lfs](https://git-lfs.github.com/), you can run

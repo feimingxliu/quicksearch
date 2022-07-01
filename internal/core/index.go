@@ -29,12 +29,23 @@ type Index struct {
 	NumberOfShards int       `json:"number_of_shards"` // number of shards
 	StorePath      string    `json:"store_path"`       // index's document storage dir
 	InvertedPath   string    `json:"inverted_path"`    // inverted index storage dir
-	rwMutex        sync.RWMutex
-	open           bool
-	store          *Shards // for document storage
-	inverted       *Shards // for inverted index storage
-	tokenizer      ptokenizer.Tokenizer
+
+	rwMutex   sync.RWMutex
+	open      bool
+	store     *Shards // for document storage
+	inverted  *Shards // for inverted index storage
+	tokenizer ptokenizer.Tokenizer
+
+	invertedCache *cache.Cache
+	invertIndexCh []chan *keywordsDoc
+	closeWorker   func()
 }
+
+var (
+	DefaultExpiration    = 30 * time.Second // time for key expiration in invertedCache
+	CleanupInterval      = 30 * time.Second // time for clean expired key in invertedCache
+	DefaultWorkerChanBuf = 100000
+)
 
 type options struct {
 	name          string
@@ -178,6 +189,19 @@ func (index *Index) initTokenizer() {
 	}
 }
 
+func (index *Index) initWorker() {
+	if index.invertedCache == nil {
+		index.invertedCache = cache.New(DefaultExpiration, CleanupInterval)
+	}
+	if index.invertIndexCh == nil {
+		index.invertIndexCh = make([]chan *keywordsDoc, index.NumberOfShards)
+		for i := range index.invertIndexCh {
+			index.invertIndexCh[i] = make(chan *keywordsDoc, DefaultWorkerChanBuf)
+		}
+	}
+	index.closeWorker = index.runInvertedIndexWorker()
+}
+
 //Open open the index, append to the Indices and init the cache.
 func (index *Index) Open() error {
 	{
@@ -193,6 +217,7 @@ func (index *Index) Open() error {
 		index.rwMutex.Lock()
 		index.initStorage()
 		index.initTokenizer()
+		index.initWorker()
 		index.open = true
 		index.rwMutex.Unlock()
 	}
@@ -201,12 +226,6 @@ func (index *Index) Open() error {
 		indicesRwMu.Lock()
 		Indices[index.Name] = index
 		indicesRwMu.Unlock()
-	}
-
-	{
-		invertedRwMu.Lock()
-		invertedCache[index] = cache.New(DefaultExpiration, CleanupInterval)
-		invertedRwMu.Unlock()
 	}
 
 	return nil
@@ -225,6 +244,10 @@ func (index *Index) Close() error {
 
 	{
 		index.rwMutex.Lock()
+		if index.closeWorker != nil {
+			index.closeWorker()
+		}
+		index.invertedCache.Flush()
 		if err := index.store.Close(); err != nil {
 			return err
 		}
@@ -242,12 +265,6 @@ func (index *Index) Close() error {
 		indicesRwMu.Unlock()
 	}
 
-	{
-		invertedRwMu.Lock()
-		delete(invertedCache, index)
-		invertedRwMu.Unlock()
-	}
-
 	return nil
 }
 
@@ -259,6 +276,12 @@ func (index *Index) Delete() error {
 	index.rwMutex.Lock()
 	defer index.rwMutex.Unlock()
 	index.open = false
+	// close worker
+	if index.closeWorker != nil {
+		index.closeWorker()
+	}
+	index.invertedCache.Flush()
+	index.invertedCache = nil
 	//close tokenizer.
 	index.tokenizer.Close()
 	//delete docs.

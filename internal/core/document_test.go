@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/feimingxliu/quicksearch/pkg/util"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
+	"github.com/feimingxliu/quicksearch/pkg/util/slices"
 	"log"
 	"sync"
 	"testing"
@@ -24,10 +25,15 @@ func TestIndexDocument(t *testing.T) {
 		}
 	})
 	log.Println("IndexDocument costs: ", duration)
-	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
-		t.Fatal(err)
-	} else {
-		json.Print("数学", ids)
+	query := m["text"].(string)
+	for _, keyword := range index.tokenizer.Keywords(query, len(query)) {
+		if ids, err := index.GetIDsByKeyword(keyword); err != nil {
+			t.Error(err)
+		} else {
+			if !slices.ContainsStr(ids, doc.ID) {
+				t.Errorf("Inverted index: keyword %q, %q not included\n", keyword, doc.ID)
+			}
+		}
 	}
 	log.Println("Delete Index.")
 	if err := index.Delete(); err != nil {
