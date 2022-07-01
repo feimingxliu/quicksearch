@@ -87,7 +87,6 @@ func (index *Index) runInvertedIndexWorker() func() {
 	}
 }
 
-// TODO: fix the concurrency bug.
 //MapKeywordsDoc maps keywords to the doc.
 func (index *Index) MapKeywordsDoc(keywords []string, docID string) error {
 	if err := index.Open(); err != nil {

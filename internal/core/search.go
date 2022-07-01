@@ -155,7 +155,7 @@ func (index *Index) Search(option *SearchOption) *SearchResult {
 	//sort hits in descending order by score.
 	sort.Sort(HitSlice(hits))
 	searchResult := &SearchResult{
-		Took: int(time.Now().Sub(startTime).Seconds()),
+		Took: time.Now().Sub(startTime).String(),
 		TimedOut: func() bool {
 			if isTimeout {
 				return true

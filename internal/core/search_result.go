@@ -3,7 +3,7 @@ package core
 import "time"
 
 type SearchResult struct {
-	Took     int     `json:"took"`
+	Took     string  `json:"took"`
 	TimedOut bool    `json:"timed_out"`
 	MaxScore float64 `json:"max_score"`
 	Hits     Hits    `json:"hits"`
