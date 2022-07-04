@@ -18,13 +18,14 @@ require (
 
 require (
 	github.com/blevesearch/bleve/v2 v2.3.2
+	github.com/blevesearch/bleve_index_api v1.0.1
+	github.com/go-ego/gse v0.70.2
 	github.com/syndtr/goleveldb v1.0.0
 )
 
 require (
 	github.com/RoaringBitmap/roaring v0.9.4 // indirect
 	github.com/bits-and-blooms/bitset v1.2.0 // indirect
-	github.com/blevesearch/bleve_index_api v1.0.1 // indirect
 	github.com/blevesearch/go-porterstemmer v1.0.3 // indirect
 	github.com/blevesearch/gtreap v0.1.1 // indirect
 	github.com/blevesearch/mmap-go v1.0.3 // indirect
@@ -62,6 +63,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.3.0 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
+	github.com/vcaesar/cedar v0.20.1 // indirect
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
