@@ -17,6 +17,7 @@
 /test/testdata/*.db
 /test/testdata/*.xml
 /test/testdata/*.json
+/test/data/
 /bin/
 /data/
 /cmd/client

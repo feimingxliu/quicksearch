@@ -76,3 +76,13 @@ func CopyDir(src, dst string) error {
 		return err
 	})
 }
+
+func FileExists(path string) (bool, error) {
+	if _, err := os.Open(path); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}

@@ -2,8 +2,8 @@ package core
 
 import (
 	pconfig "github.com/feimingxliu/quicksearch/internal/config"
+	ptokenizer "github.com/feimingxliu/quicksearch/internal/pkg/analyzer"
 	"github.com/feimingxliu/quicksearch/internal/pkg/storager"
-	ptokenizer "github.com/feimingxliu/quicksearch/internal/pkg/tokenizer"
 	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/feimingxliu/quicksearch/pkg/util/uuid"
