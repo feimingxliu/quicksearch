@@ -74,7 +74,7 @@ func NewIndex(opts ...Option) (*Index, error) {
 		UpdateAt:       time.Now(),
 	}
 	if index.NumberOfShards <= 0 {
-		index.NumberOfShards = DefaultNumberOfShards
+		index.NumberOfShards = config.Global.Engine.DefaultNumberOfShards
 	}
 	// open and put into engine.indices
 	if err := index.Open(); err != nil {
