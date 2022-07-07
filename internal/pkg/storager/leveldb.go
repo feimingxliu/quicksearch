@@ -3,23 +3,19 @@ package storager
 import (
 	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
-	"log"
 	"os"
 	"path"
-	"runtime/debug"
 )
 
-func newLeveldb(dbPath string) *goleveldb {
+func newLeveldb(dbPath string) (*goleveldb, error) {
 	if err := os.MkdirAll(path.Dir(dbPath), 0755); err != nil {
-		debug.PrintStack()
-		log.Fatalln("[newLeveldb] os.MkdirAll: ", err)
+		return nil, err
 	}
 	db, err := leveldb.OpenFile(dbPath, nil)
 	if err != nil {
-		debug.PrintStack()
-		log.Fatalln("[newLeveldb] leveldb.OpenFile: ", err)
+		return nil, err
 	}
-	return &goleveldb{db: db}
+	return &goleveldb{db: db}, nil
 }
 
 type goleveldb struct {

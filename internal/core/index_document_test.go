@@ -1,46 +1,171 @@
 package core
 
 import (
-	"fmt"
+	"bufio"
+	"github.com/blevesearch/bleve/v2"
 	"github.com/feimingxliu/quicksearch/pkg/util"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
-	"github.com/feimingxliu/quicksearch/pkg/util/slices"
 	"log"
-	"sync"
+	"os"
 	"testing"
 )
 
-func TestIndexDocument(t *testing.T) {
-	prepare(t)
-	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
+const (
+	docsFile   = "../../test/testdata/zhwiki-20220601-abstract.json"
+	docMapping = `{
+    "default_mapping": {
+        "properties": {
+            "id": {
+                "fields": [
+                    {
+                        "type": "keyword"
+                    }
+                ]
+            },
+            "title": {
+                "fields": [
+                    {
+                        "type": "text"
+                    }
+                ]
+            },
+            "url": {
+				"disabled": true,
+				"fields": [
+				{
+					"type": "keyword"
+				}
+                }
+            },
+            "text": {
+                "fields": [
+                    {
+                        "type": "text"
+                    }
+                ]
+            }
+        }
+    },
+    "type_field": "_type",
+    "default_type": "_default",
+    "default_analyzer": "jieba"
+}`
+)
+
+func indexSomeDocs(t *testing.T, num int) {
+	// build index mapping
 	m := make(map[string]interface{})
-	_ = json.Unmarshal([]byte(raw), &m)
-	doc := NewDocument(m)
+	_ = json.Unmarshal([]byte(docMapping), &m)
+	im, err := BuildIndexMappingFromMap(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index, err := NewIndex(WithName(indexName), WithIndexMapping(im), WithShards(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.OpenFile(docsFile, os.O_RDONLY, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scanner := bufio.NewScanner(f)
+	totalBulked := 0
 	duration := util.ExecTime(func() {
-		if err := index.IndexDocument(doc); err != nil {
-			t.Fatal(err)
-		} else {
-			json.Print("index", index)
-			json.Print("doc", doc)
+		for i := 0; i < num && scanner.Scan(); i++ {
+			doc := make(map[string]interface{})
+			if err := json.Unmarshal(scanner.Bytes(), &doc); err != nil {
+				t.Fatal(err)
+			}
+			err := index.IndexOrUpdateDocument(doc["id"].(string), doc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			totalBulked++
 		}
 	})
-	log.Println("IndexDocument costs: ", duration)
-	query := m["text"].(string)
-	for _, keyword := range index.tokenizer.Keywords(query, len(query)) {
-		if ids, err := index.GetIDsByKeyword(keyword); err != nil {
-			t.Error(err)
-		} else {
-			if !slices.ContainsStr(ids, doc.ID) {
-				t.Errorf("Inverted index: keyword %q, %q not included\n", keyword, doc.ID)
-			}
-		}
-	}
-	log.Println("Delete Index.")
-	if err := index.Delete(); err != nil {
+	log.Printf("Index %d docs costs: %s\n", totalBulked, duration)
+	err = index.Close()
+	if err != nil {
 		t.Fatal(err)
 	}
 }
 
+func TestIndexDocument(t *testing.T) {
+	prepare(t)
+	defer clean(t)
+	indexSomeDocs(t, 1000)
+
+	index, err := GetIndex(indexName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		log.Println("Delete Index.")
+		if err := index.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// cause there is only one shard for this index
+	bleveIndex := index.Shards[0].Indexer
+
+	// search keyword
+	docID := `43a1b5cd7383441b83049dc85188d9f3`
+	query := bleve.NewTermQuery(docID)
+	query.SetBoost(1)
+	//query.FieldVal = "id"
+	search := bleve.NewSearchRequest(query)
+	search.Fields = []string{"*"}
+	search.Size = 1
+	search.IncludeLocations = false
+	searchResults, err := bleveIndex.Search(search)
+	if err != nil {
+		t.Fatal(err)
+	}
+	json.Print("search term id", searchResults)
+	// by default, the results are sorted by `score`
+	if searchResults.Hits[0].ID != docID {
+		t.Errorf("search term id [%s] failed", docID)
+	}
+
+	// search disable field
+	url := "https://zh.wikipedia.org/wiki/数学"
+	query = bleve.NewTermQuery(url)
+	query.SetBoost(1)
+	query.FieldVal = "url"
+	search = bleve.NewSearchRequest(query)
+	search.Fields = []string{"*"}
+	search.Size = 1
+	search.IncludeLocations = false
+	searchResults, err = bleveIndex.Search(search)
+	if err != nil {
+		t.Fatal(err)
+	}
+	json.Print("search term url(disabled)", searchResults)
+	if len(searchResults.Hits) != 0 {
+		t.Errorf("search term url [%s] failed", url)
+	}
+
+	// search match text
+	text := "研究数量、结构以及空间等概念及其变化的一门学科"
+	mquery := bleve.NewMatchQuery(text)
+	mquery.SetBoost(1)
+	//mquery.FieldVal = "text"
+	search = bleve.NewSearchRequest(mquery)
+	search.Fields = []string{"*"}
+	search.Size = 1
+	search.IncludeLocations = false
+	searchResults, err = bleveIndex.Search(search)
+	if err != nil {
+		t.Fatal(err)
+	}
+	json.Print("search match text", searchResults)
+	if searchResults.Hits[0].ID != docID {
+		t.Errorf("search match text [%s] failed", text)
+	}
+}
+
+/*
 func TestRetrieveDocument(t *testing.T) {
 	prepare(t)
 	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
@@ -193,3 +318,4 @@ func bulkIndexDocument(t *testing.T, n uint) {
 		t.Fatal(err)
 	}
 }
+*/

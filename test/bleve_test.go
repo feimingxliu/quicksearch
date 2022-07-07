@@ -91,6 +91,10 @@ func TestBleve(t *testing.T) {
 	wikiMapping.AddFieldMappingsAt("url", urlFieldMapping)
 	textFieldMapping := bleve.NewTextFieldMapping()
 	wikiMapping.AddFieldMappingsAt("text", textFieldMapping)
+	mapping.AddDocumentMapping("zhwiki", wikiMapping)
+	// this will cause the new doc which don't set `_type` field use the `wikiMapping` above
+	mapping.DefaultType = "zhwiki"
+	json.Print("mapping", mapping)
 
 	// open the index
 	index, err := bleve.New(indexPath, mapping)

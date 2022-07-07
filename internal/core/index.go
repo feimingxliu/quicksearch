@@ -1,58 +1,36 @@
 package core
 
 import (
-	pconfig "github.com/feimingxliu/quicksearch/internal/config"
-	ptokenizer "github.com/feimingxliu/quicksearch/internal/pkg/analyzer"
-	"github.com/feimingxliu/quicksearch/internal/pkg/storager"
+	"fmt"
+	"github.com/blevesearch/bleve/v2"
+	"github.com/feimingxliu/quicksearch/internal/config"
+	_ "github.com/feimingxliu/quicksearch/internal/pkg/analyzer"
 	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/feimingxliu/quicksearch/pkg/util/uuid"
-	"github.com/patrickmn/go-cache"
 	"os"
 	"path"
-	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
-// TODO: use bleve to index the docs.
-
 type Index struct {
-	UID            string    `json:"uid"`
-	Name           string    `json:"name"`
-	StorageType    string    `json:"storage_type"` // just for docs storage, inverted index not included.
-	TokenizerType  string    `json:"tokenizer_type"`
-	DocNum         uint64    `json:"doc_num"`
-	DocTimeMin     int64     `json:"doc_time_min"` // indexed doc's min @timestamp (ns)
-	DocTimeMax     int64     `json:"doc_time_max"` // indexed doc's max @timestamp (ns)
-	CreateAt       time.Time `json:"create_at"`
-	UpdateAt       time.Time `json:"update_at"`
-	NumberOfShards int       `json:"number_of_shards"` // number of shards
-	StorePath      string    `json:"store_path"`       // index's document storage dir
-	InvertedPath   string    `json:"inverted_path"`    // inverted index storage dir
-
-	rwMutex   sync.RWMutex
-	open      bool
-	store     *Shards // for document storage
-	inverted  *Shards // for inverted index storage
-	tokenizer ptokenizer.Tokenizer
-
-	invertedCache *cache.Cache
-	invertIndexCh []chan *keywordsDoc
-	closeWorker   func()
+	UID            string        `json:"uid"`
+	Name           string        `json:"name"`
+	Mapping        *IndexMapping `json:"mapping"`
+	DocNum         uint64        `json:"doc_num"`          // number of docs
+	StorageSize    uint64        `json:"storage_size"`     // bytes on disk
+	NumberOfShards int           `json:"number_of_shards"` // number of shards
+	Shards         []*IndexShard `json:"shards"`
+	CreateAt       time.Time     `json:"create_at"`
+	UpdateAt       time.Time     `json:"update_at"`
+	mu             sync.RWMutex
 }
 
-var (
-	DefaultExpiration    = 30 * time.Second // time for key expiration in invertedCache
-	CleanupInterval      = 30 * time.Second // time for clean expired key in invertedCache
-	DefaultWorkerChanBuf = 100000
-)
-
 type options struct {
-	name          string
-	storageType   string
-	tokenizerType string
+	name        string
+	mapping     *IndexMapping
+	numOfShards int
 }
 
 type Option func(*options)
@@ -63,52 +41,78 @@ func WithName(name string) Option {
 	}
 }
 
-func WithStorage(s string) Option {
+func WithIndexMapping(m *IndexMapping) Option {
 	return func(o *options) {
-		o.storageType = s
+		o.mapping = m
 	}
 }
 
-func WithTokenizer(t string) Option {
+func WithShards(num int) Option {
 	return func(o *options) {
-		o.tokenizerType = t
+		o.numOfShards = num
 	}
 }
 
-//NewIndex return an Index, which is opened and appended to Indices.
-func NewIndex(opts ...Option) *Index {
+// NewIndex return an Index, which is opened and appended to engine.indices.
+func NewIndex(opts ...Option) (*Index, error) {
 	// the default will be replaced by opts
-	config := &options{
-		storageType:   "bolt",
-		tokenizerType: "jieba",
-	}
+	cfg := &options{}
 	for _, opt := range opts {
-		opt(config)
+		opt(cfg)
 	}
-	if index, err := GetIndex(config.name); err == nil && index != nil {
-		return index
+	if index, err := GetIndex(cfg.name); err == nil && index != nil {
+		return index, nil
 	}
 	uid := uuid.GetXID()
 	index := &Index{
 		UID:            uid,
-		Name:           config.name,
-		StorageType:    strings.ToLower(config.storageType),
-		TokenizerType:  strings.ToLower(config.tokenizerType),
-		NumberOfShards: DefaultShards,
-		StorePath:      path.Join(pconfig.Global.Storage.DataDir, "indices", uid),
-		InvertedPath:   path.Join(pconfig.Global.Storage.DataDir, "inverted", uid),
+		Name:           cfg.name,
+		NumberOfShards: cfg.numOfShards,
 		CreateAt:       time.Now(),
 		UpdateAt:       time.Now(),
 	}
-	_ = index.Open()
-	//store metadata.
+	if index.NumberOfShards <= 0 {
+		index.NumberOfShards = DefaultNumberOfShards
+	}
+	// open and put into engine.indices
+	if err := index.Open(); err != nil {
+		return nil, err
+	}
+	// store metadata.
 	_ = index.UpdateMetadata()
-	return index
+	return index, nil
 }
 
-//ListIndices list all managed indices, note: not opened!
+func (index *Index) SetMapping(mapping interface{}) error {
+	if mapping == nil {
+		return nil
+	}
+	switch m := mapping.(type) {
+	case *IndexMapping:
+		index.Mapping = m
+	case IndexMapping:
+		index.Mapping = &m
+	case map[string]interface{}:
+		if mp, err := BuildIndexMappingFromMap(m); err != nil {
+			return err
+		} else {
+			index.Mapping = mp
+		}
+	case *map[string]interface{}:
+		if mp, err := BuildIndexMappingFromMap(*m); err != nil {
+			return err
+		} else {
+			index.Mapping = mp
+		}
+	default:
+		return errors.ErrInvalidMapping
+	}
+	return nil
+}
+
+// ListIndices list all managed indices, note: not opened!
 func ListIndices() ([]*Index, error) {
-	data, err := meta.List()
+	data, err := engine.meta.List()
 	if err != nil {
 		return nil, err
 	}
@@ -124,15 +128,15 @@ func ListIndices() ([]*Index, error) {
 	return indexes, nil
 }
 
-//GetIndex firstly search in mem, than find in db, in err == nil and index != nil, it's ready to use(opened).
+// GetIndex firstly search in mem, than find in db, in err == nil and index != nil, it's ready to use(opened).
 func GetIndex(name string) (*Index, error) {
-	indicesRwMu.RLock()
-	if index, ok := Indices[name]; ok {
-		indicesRwMu.RUnlock()
+	if index := engine.getIndex(name); index != nil {
+		if err := index.Open(); err != nil {
+			return nil, err
+		}
 		return index, nil
 	}
-	indicesRwMu.RUnlock()
-	b, err := meta.Get(name)
+	b, err := engine.meta.Get(name)
 	if err != nil {
 		if err == errors.ErrKeyNotFound {
 			return nil, errors.ErrIndexNotFound
@@ -150,232 +154,194 @@ func GetIndex(name string) (*Index, error) {
 	return index, nil
 }
 
-func (index *Index) initStorage() {
-	switch index.StorageType {
-	case "bolt":
-		index.store = NewShards(&ShardConfig{
-			Path:        index.StorePath,
-			IndexUID:    index.UID,
-			StorageType: storager.Bolt,
-			NumOfShards: index.NumberOfShards,
-		})
-	case "leveldb":
-		index.store = NewShards(&ShardConfig{
-			Path:        index.StorePath,
-			IndexUID:    index.UID,
-			StorageType: storager.Leveldb,
-			NumOfShards: index.NumberOfShards,
-		})
-	default:
-		index.store = NewShards(&ShardConfig{
-			Path:        index.StorePath,
-			IndexUID:    index.UID,
-			StorageType: storager.Leveldb,
-			NumOfShards: index.NumberOfShards,
-		})
-	}
-	index.inverted = NewShards(&ShardConfig{
-		Path:        index.InvertedPath,
-		IndexUID:    index.UID,
-		StorageType: storager.Leveldb,
-		NumOfShards: index.NumberOfShards,
-	})
-}
-
-func (index *Index) initTokenizer() {
-	switch index.TokenizerType {
-	case "jieba":
-		index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Jieba)
-	default:
-		index.tokenizer = ptokenizer.NewTokenizer(ptokenizer.Default)
-	}
-}
-
-func (index *Index) initWorker() {
-	if index.invertedCache == nil {
-		index.invertedCache = cache.New(DefaultExpiration, CleanupInterval)
-	}
-	if index.invertIndexCh == nil {
-		index.invertIndexCh = make([]chan *keywordsDoc, index.NumberOfShards)
-		for i := range index.invertIndexCh {
-			index.invertIndexCh[i] = make(chan *keywordsDoc, DefaultWorkerChanBuf)
-		}
-	}
-	index.closeWorker = index.runInvertedIndexWorker()
-}
-
-//Open open the index, append to the Indices and init the cache.
+// Open open the index, append it to the engine.indices.
 func (index *Index) Open() error {
-	{
-		index.rwMutex.RLock()
-		if index.open {
-			index.rwMutex.RUnlock()
-			return nil
+	index.mu.Lock()
+	if index.Shards == nil {
+		index.Shards = make([]*IndexShard, 0, index.NumberOfShards)
+		for i := 0; i < index.NumberOfShards; i++ {
+			mapping, err := buildIndexMapping(index.Mapping)
+			if err != nil {
+				return err
+
+			}
+			indexer, err := bleve.New(index.shardDir(i), mapping)
+			if err != nil {
+				return err
+			}
+			shard := &IndexShard{
+				ID:      i,
+				Indexer: indexer,
+			}
+			index.Shards = append(index.Shards, shard)
 		}
-		index.rwMutex.RUnlock()
+	} else {
+		for _, shard := range index.Shards {
+			if shard.Indexer != nil {
+				continue
+			}
+			indexer, err := bleve.Open(index.shardDir(shard.ID))
+			if err != nil {
+				index.mu.Unlock()
+				return err
+			}
+			shard.Indexer = indexer
+		}
 	}
-
-	{
-		index.rwMutex.Lock()
-		index.initStorage()
-		index.initTokenizer()
-		index.initWorker()
-		index.open = true
-		index.rwMutex.Unlock()
+	engine.addIndex(index)
+	index.mu.Unlock()
+	// update metadata after open
+	if err := index.UpdateMetadata(); err != nil {
+		return err
 	}
-
-	{
-		indicesRwMu.Lock()
-		Indices[index.Name] = index
-		indicesRwMu.Unlock()
-	}
-
 	return nil
 }
 
-//Close closes index and release the related resource, including remove from Indices and delete the cache.
+// Close closes index and release the related resource, including remove from engine.indices.
 func (index *Index) Close() error {
-	{
-		index.rwMutex.RLock()
-		if !index.open {
-			index.rwMutex.RUnlock()
-			return nil
-		}
-		index.rwMutex.RUnlock()
+	// update metadata before close
+	if err := index.UpdateMetadata(); err != nil {
+		return err
 	}
-
-	{
-		index.rwMutex.Lock()
-		if index.closeWorker != nil {
-			index.closeWorker()
+	index.mu.Lock()
+	engine.removeIndex(index)
+	for _, shard := range index.Shards {
+		if shard.Indexer == nil {
+			continue
 		}
-		index.invertedCache.Flush()
-		if err := index.store.Close(); err != nil {
+		if err := shard.Indexer.Close(); err != nil {
+			index.mu.Unlock()
 			return err
 		}
-		if err := index.inverted.Close(); err != nil {
-			return err
-		}
-		index.tokenizer.Close()
-		index.open = false
-		index.rwMutex.Unlock()
+		shard.Indexer = nil
 	}
-
-	{
-		indicesRwMu.Lock()
-		delete(Indices, index.Name)
-		indicesRwMu.Unlock()
-	}
-
+	index.mu.Unlock()
 	return nil
 }
 
-//Delete close the index, remove from Indices, delete all docs within it, delete index metadata, remove db file and inverted file.
+// Delete close the index, remove from engine.indices, delete all index files, delete index metadata.
 func (index *Index) Delete() error {
-	indicesRwMu.Lock()
-	delete(Indices, index.Name)
-	indicesRwMu.Unlock()
-	index.rwMutex.Lock()
-	defer index.rwMutex.Unlock()
-	index.open = false
-	// close worker
-	if index.closeWorker != nil {
-		index.closeWorker()
-	}
-	index.invertedCache.Flush()
-	index.invertedCache = nil
-	//close tokenizer.
-	index.tokenizer.Close()
-	//delete docs.
-	if err := index.store.DeleteAll(); err != nil {
+	// close
+	if err := index.Close(); err != nil {
 		return err
 	}
-	//delete inverted index.
-	if err := index.inverted.DeleteAll(); err != nil {
+	index.mu.Lock()
+	defer index.mu.Unlock()
+	// delete metadata.
+	if err := engine.meta.Delete(index.Name); err != nil {
 		return err
 	}
-	//delete metadata.
-	if err := meta.Delete(index.Name); err != nil {
-		return err
-	}
-	//close db.
-	if err := index.store.Close(); err != nil {
-		return err
-	}
-	if err := index.inverted.Close(); err != nil {
-		return err
-	}
-	//remove dir.
-	if err := os.RemoveAll(index.StorePath); err != nil {
-		return err
-	}
-	if err := os.RemoveAll(index.InvertedPath); err != nil {
+	// remove all files.
+	if err := os.RemoveAll(index.dir()); err != nil {
 		return err
 	}
 	return nil
 }
 
-//Clone clones the entire index to a new index, docs included.
+// Clone clones the entire index to a new index.
 func (index *Index) Clone(name string) error {
-	if name == index.Name {
-		return errors.ErrCloneIndexSameName
+	// check if cloned index is valid
+	if _, err := GetIndex(name); err == nil {
+		return errors.ErrIndexAlreadyExists
+	} else {
+		if err != errors.ErrIndexNotFound {
+			return err
+		}
 	}
 	uid := uuid.GetXID()
 	clone := &Index{
 		UID:            uid,
 		Name:           name,
-		StorageType:    index.StorageType,
-		TokenizerType:  index.TokenizerType,
+		Mapping:        index.Mapping,
 		DocNum:         index.DocNum,
-		DocTimeMin:     index.DocTimeMin,
-		DocTimeMax:     index.DocTimeMax,
+		StorageSize:    index.StorageSize,
+		NumberOfShards: index.NumberOfShards,
+		Shards:         make([]*IndexShard, 0, index.NumberOfShards),
 		CreateAt:       time.Now(),
 		UpdateAt:       time.Now(),
-		NumberOfShards: index.NumberOfShards,
-		StorePath:      path.Join(path.Dir(index.StorePath), uid),
-		InvertedPath:   path.Join(path.Dir(index.InvertedPath), uid),
+		mu:             sync.RWMutex{},
 	}
-	//clone storage file.
-	if err := index.store.CloneIndex(clone.StorePath); err != nil {
+	// clone all shards.
+	// open the index first if it is closed.
+	if err := index.Open(); err != nil {
 		return err
 	}
-	if err := index.inverted.CloneIndex(clone.InvertedPath); err != nil {
-		return err
+	index.mu.RLock()
+	for _, shard := range index.Shards {
+		copyableIndex, ok := shard.Indexer.(bleve.IndexCopyable)
+		if !ok {
+			index.mu.RUnlock()
+			return errors.ErrIndexCloneNotSupported
+		}
+		if err := copyableIndex.CopyTo(bleve.FileSystemDirectory(clone.shardDir(shard.ID))); err != nil {
+			return err
+		}
+		clone.Shards = append(clone.Shards, &IndexShard{
+			ID:          shard.ID,
+			DocNum:      shard.DocNum,
+			StorageSize: shard.StorageSize,
+			Indexer:     nil,
+		})
 	}
-	//write metadata.
-	if err := clone.UpdateMetadata(); err != nil {
-		return err
-	}
-	//open the index.
+	index.mu.RUnlock()
+	// open the cloned index.
 	if err := clone.Open(); err != nil {
+		return err
+	}
+	// write metadata.
+	if err := clone.UpdateMetadata(); err != nil {
 		return err
 	}
 	return nil
 }
 
-//SetTimestamp updates DocTimeMin and DocTimeMax.
-func (index *Index) SetTimestamp(t int64) {
-	if index.DocTimeMin == 0 {
-		atomic.StoreInt64(&index.DocTimeMin, t)
+// UpdateMetadata writes the index metadata to db.
+func (index *Index) UpdateMetadata() error {
+	var totalDocNum, totalSize uint64
+	// update docNum and storageSize
+	for i := 0; i < index.NumberOfShards; i++ {
+		index.UpdateMetadataByShard(i)
 	}
-	if index.DocTimeMax == 0 {
-		atomic.StoreInt64(&index.DocTimeMax, t)
+	index.mu.RLock()
+	for i := 0; i < index.NumberOfShards; i++ {
+		totalDocNum += index.Shards[i].DocNum
+		totalSize += index.Shards[i].StorageSize
 	}
-	if t < index.DocTimeMin {
-		atomic.StoreInt64(&index.DocTimeMin, t)
+	if totalDocNum > 0 && totalSize > 0 {
+		index.DocNum = totalDocNum
+		index.StorageSize = totalSize
 	}
-	if t > index.DocTimeMax {
-		atomic.StoreInt64(&index.DocTimeMax, t)
+	b, _ := json.Marshal(index)
+	index.mu.RUnlock()
+	return engine.meta.Set(index.Name, b)
+}
+
+func (index *Index) UpdateMetadataByShard(n int) {
+	index.mu.RLock()
+	shard := index.Shards[n]
+	index.mu.RUnlock()
+	if shard.Indexer == nil {
+		return
+	}
+	docNum, _ := shard.Indexer.DocCount()
+	var storageSize uint64
+	if n, ok := shard.Indexer.StatsMap()["CurOnDiskBytes"].(uint64); ok {
+		storageSize = n
+	}
+	if docNum > 0 {
+		shard.DocNum = docNum
+	}
+	if storageSize > 0 {
+		shard.StorageSize = storageSize
 	}
 }
 
-//UpdateMetadata writes the index metadata to db.
-func (index *Index) UpdateMetadata() error {
-	index.rwMutex.RLock()
-	b, err := json.Marshal(index)
-	if err != nil {
-		return err
-	}
-	index.rwMutex.RUnlock()
-	return meta.Set(index.Name, b)
+// returns the index storage dir
+func (index *Index) dir() string {
+	return path.Join(config.Global.Storage.DataDir, "indices", index.Name)
+}
+
+// returns the index shard storage dir
+func (index *Index) shardDir(shard int) string {
+	return path.Join(index.dir(), fmt.Sprintf("%s_%d", index.UID, shard))
 }

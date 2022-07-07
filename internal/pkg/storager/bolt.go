@@ -3,26 +3,22 @@ package storager
 import (
 	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"go.etcd.io/bbolt"
-	"log"
 	"os"
 	"path"
-	"runtime/debug"
 )
 
-func newBolt(dbPath string) *bolt {
+func newBolt(dbPath string) (*bolt, error) {
 	opt := &bbolt.Options{
 		Timeout:      0,
 		NoGrowSync:   false,
 		FreelistType: bbolt.FreelistArrayType,
 	}
 	if err := os.MkdirAll(path.Dir(dbPath), 0755); err != nil {
-		debug.PrintStack()
-		log.Fatalln("[newBolt] os.MkdirAll: ", err)
+		return nil, err
 	}
 	db, err := bbolt.Open(dbPath, 0666, opt)
 	if err != nil {
-		debug.PrintStack()
-		log.Fatalln("[newBolt] bbolt.Open: ", err)
+		return nil, err
 	}
 	err = db.Update(func(txn *bbolt.Tx) error {
 		_, err := txn.CreateBucketIfNotExists(defaultBucket)
@@ -32,10 +28,9 @@ func newBolt(dbPath string) *bolt {
 		return nil
 	})
 	if err != nil {
-		debug.PrintStack()
-		log.Fatalln("[newBolt] Tx.CreateBucketIfNotExists: ", err)
+		return nil, err
 	}
-	return &bolt{db}
+	return &bolt{db}, nil
 }
 
 type bolt struct {

@@ -1,5 +1,6 @@
 package core
 
+/*
 import (
 	"bufio"
 	"fmt"
@@ -114,3 +115,4 @@ func indexSomeDocs(t *testing.T) (firstDocID string) {
 	}
 	return
 }
+*/
