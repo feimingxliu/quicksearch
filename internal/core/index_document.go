@@ -5,6 +5,7 @@ import (
 	"github.com/blevesearch/bleve/v2/document"
 	imapping "github.com/blevesearch/bleve/v2/mapping"
 	"github.com/feimingxliu/quicksearch/pkg/util"
+	"time"
 )
 
 // IndexOrUpdateDocument indexes or update a document refers to `index`
@@ -21,7 +22,17 @@ func (index *Index) IndexOrUpdateDocument(docID string, source map[string]interf
 	return idx.Update(doc)
 }
 
+func (index *Index) GetDocument(docID string) (map[string]interface{}, error) {
+	panic("implement me")
+}
+
+func (index *Index) DeleteDocument(docID string) error {
+	panic("implement me")
+}
+
 func (index *Index) buildBleveDocument(docID string, source map[string]interface{}, mapping imapping.IndexMapping) (*document.Document, error) {
+	// add `@timestamp` field
+	attachTimestamp(source)
 	var err error
 	doc := document.NewDocument(docID)
 	if mapping != nil {
@@ -42,6 +53,12 @@ func (index *Index) buildBleveDocument(docID string, source map[string]interface
 		return nil, err
 	}
 	return doc, nil
+}
+
+func attachTimestamp(source map[string]interface{}) {
+	if _, ok := source["@timestamp"]; !ok {
+		source["@timestamp"] = time.Now()
+	}
 }
 
 func (index *Index) getDocShard(docID string) *IndexShard {

@@ -5,6 +5,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/feimingxliu/quicksearch/internal/config"
 	_ "github.com/feimingxliu/quicksearch/internal/pkg/analyzer"
+	"github.com/feimingxliu/quicksearch/internal/pkg/analyzer/jieba"
 	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/feimingxliu/quicksearch/pkg/util/uuid"
@@ -67,6 +68,7 @@ func NewIndex(opts ...Option) (*Index, error) {
 	index := &Index{
 		UID:            uid,
 		Name:           cfg.name,
+		Mapping:        cfg.mapping,
 		NumberOfShards: cfg.numOfShards,
 		CreateAt:       time.Now(),
 		UpdateAt:       time.Now(),
@@ -208,6 +210,10 @@ func (index *Index) Close() error {
 	for _, shard := range index.Shards {
 		if shard.Indexer == nil {
 			continue
+		}
+		// cleanup cgo allocated heap memory
+		if az := shard.Indexer.Mapping().AnalyzerNamed("gojieba"); az != nil {
+			az.Tokenizer.(*jieba.JiebaTokenizer).Free()
 		}
 		if err := shard.Indexer.Close(); err != nil {
 			index.mu.Unlock()

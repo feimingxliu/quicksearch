@@ -80,9 +80,6 @@ func buildDocumentMapping(dm *DocumentMapping) (*imapping.DocumentMapping, error
 	if dm == nil {
 		return documentMapping, nil
 	}
-	if dm.Disabled {
-		return bleve.NewDocumentDisabledMapping(), nil
-	}
 	properties := make(map[string]*imapping.DocumentMapping, len(dm.Properties))
 	for name, vdm := range dm.Properties {
 		if rdm, err := buildDocumentMapping(vdm); err != nil {
@@ -99,6 +96,7 @@ func buildDocumentMapping(dm *DocumentMapping) (*imapping.DocumentMapping, error
 			fields = append(fields, ifm)
 		}
 	}
+	documentMapping.Enabled = !dm.Disabled
 	documentMapping.Properties = properties
 	documentMapping.Fields = fields
 	documentMapping.DefaultAnalyzer = dm.DefaultAnalyzer

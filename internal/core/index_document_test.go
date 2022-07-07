@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 )
 
 const (
@@ -30,12 +31,12 @@ const (
                 ]
             },
             "url": {
-				"disabled": true,
-				"fields": [
-				{
-					"type": "keyword"
-				}
-                }
+                "disabled": true,
+                "fields": [
+                    {
+                        "type": "keyword"
+                    }
+                ]
             },
             "text": {
                 "fields": [
@@ -48,14 +49,17 @@ const (
     },
     "type_field": "_type",
     "default_type": "_default",
-    "default_analyzer": "jieba"
+    "default_analyzer": "default"
 }`
 )
 
 func indexSomeDocs(t *testing.T, num int) {
 	// build index mapping
 	m := make(map[string]interface{})
-	_ = json.Unmarshal([]byte(docMapping), &m)
+	err := json.Unmarshal([]byte(docMapping), &m)
+	if err != nil {
+		t.Fatal(err)
+	}
 	im, err := BuildIndexMappingFromMap(m)
 	if err != nil {
 		t.Fatal(err)
@@ -129,11 +133,11 @@ func TestIndexDocument(t *testing.T) {
 	}
 
 	// search disable field
-	url := "https://zh.wikipedia.org/wiki/数学"
-	query = bleve.NewTermQuery(url)
-	query.SetBoost(1)
-	query.FieldVal = "url"
-	search = bleve.NewSearchRequest(query)
+	url := "数学"
+	mquery := bleve.NewMatchQuery(url)
+	mquery.SetBoost(1)
+	mquery.SetField("url")
+	search = bleve.NewSearchRequest(mquery)
 	search.Fields = []string{"*"}
 	search.Size = 1
 	search.IncludeLocations = false
@@ -148,7 +152,7 @@ func TestIndexDocument(t *testing.T) {
 
 	// search match text
 	text := "研究数量、结构以及空间等概念及其变化的一门学科"
-	mquery := bleve.NewMatchQuery(text)
+	mquery = bleve.NewMatchQuery(text)
 	mquery.SetBoost(1)
 	//mquery.FieldVal = "text"
 	search = bleve.NewSearchRequest(mquery)
@@ -163,6 +167,18 @@ func TestIndexDocument(t *testing.T) {
 	if searchResults.Hits[0].ID != docID {
 		t.Errorf("search match text [%s] failed", text)
 	}
+
+	trquery := bleve.NewDateRangeQuery(time.Now().Add(-1*time.Minute), time.Now())
+	trquery.SetField("@timestamp")
+	search = bleve.NewSearchRequest(trquery)
+	search.Fields = []string{"*"}
+	search.Size = 10
+	search.IncludeLocations = false
+	searchResults, err = bleveIndex.Search(search)
+	if err != nil {
+		t.Fatal(err)
+	}
+	json.Print("search date range", searchResults)
 }
 
 /*
