@@ -1,16 +1,11 @@
 package search
 
 import (
-	"fmt"
-	"github.com/feimingxliu/quicksearch/internal/core"
-	"github.com/feimingxliu/quicksearch/internal/pkg/http/types"
 	"github.com/gin-gonic/gin"
-	"net/http"
-	"time"
 )
 
 func Search(ctx *gin.Context) {
-	indexName := ctx.Param("index")
+	/*indexName := ctx.Param("index")
 	if len(indexName) == 0 {
 		ctx.JSON(http.StatusBadRequest, "index required!")
 		return
@@ -39,5 +34,5 @@ func Search(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, types.SearchResult{
 		Common:       types.Common{Acknowledged: true},
 		SearchResult: result,
-	})
+	})*/
 }

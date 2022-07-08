@@ -3,6 +3,7 @@ package core
 import (
 	"bufio"
 	"github.com/blevesearch/bleve/v2"
+	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"log"
@@ -94,10 +95,12 @@ func indexSomeDocs(t *testing.T, num int) {
 	}
 }
 
+const firstDocID = `43a1b5cd7383441b83049dc85188d9f3`
+
 func TestIndexDocument(t *testing.T) {
 	prepare(t)
 	defer clean(t)
-	indexSomeDocs(t, 1000)
+	indexSomeDocs(t, 100)
 
 	index, err := GetIndex(indexName)
 	if err != nil {
@@ -114,8 +117,8 @@ func TestIndexDocument(t *testing.T) {
 	bleveIndex := index.Shards[0].Indexer
 
 	// search keyword
-	docID := `43a1b5cd7383441b83049dc85188d9f3`
-	query := bleve.NewTermQuery(docID)
+
+	query := bleve.NewTermQuery(firstDocID)
 	query.SetBoost(1)
 	//query.FieldVal = "id"
 	search := bleve.NewSearchRequest(query)
@@ -128,8 +131,8 @@ func TestIndexDocument(t *testing.T) {
 	}
 	json.Print("search term id", searchResults)
 	// by default, the results are sorted by `score`
-	if searchResults.Hits[0].ID != docID {
-		t.Errorf("search term id [%s] failed", docID)
+	if searchResults.Hits[0].ID != firstDocID {
+		t.Errorf("search term id [%s] failed", firstDocID)
 	}
 
 	// search disable field
@@ -164,7 +167,7 @@ func TestIndexDocument(t *testing.T) {
 		t.Fatal(err)
 	}
 	json.Print("search match text", searchResults)
-	if searchResults.Hits[0].ID != docID {
+	if searchResults.Hits[0].ID != firstDocID {
 		t.Errorf("search match text [%s] failed", text)
 	}
 
@@ -181,103 +184,117 @@ func TestIndexDocument(t *testing.T) {
 	json.Print("search date range", searchResults)
 }
 
-/*
-func TestRetrieveDocument(t *testing.T) {
+func TestGetDocument(t *testing.T) {
 	prepare(t)
-	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
-	m := make(map[string]interface{})
-	_ = json.Unmarshal([]byte(raw), &m)
-	doc := NewDocument(m)
-	if err := index.IndexDocument(doc); err != nil {
-		t.Fatal(err)
-	} else {
-		json.Print("index", index)
-		json.Print("doc", doc)
-	}
-	if doc, err := index.RetrieveDocument(doc.ID); err != nil {
-		t.Fatal(err)
-	} else {
-		json.Print("RetrieveDocument", doc)
-	}
-	log.Println("Delete Index.")
-	if err := index.Delete(); err != nil {
+	defer clean(t)
+	indexSomeDocs(t, 1)
+
+	var err error
+	index, err := GetIndex(indexName)
+	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		log.Println("Delete Index.")
+		if err := index.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	var doc *Document
+	duration := util.ExecTime(func() {
+		doc, err = index.GetDocument(firstDocID)
+		if err != nil {
+			t.Errorf("index.GetDocument: %s", err)
+		}
+	})
+	log.Printf("index.GetDocument costs: %d ns\n", duration)
+	json.Print("document", doc)
 }
 
 func TestDeleteDocument(t *testing.T) {
 	prepare(t)
-	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
-	m := make(map[string]interface{})
-	_ = json.Unmarshal([]byte(raw), &m)
-	doc := NewDocument(m)
-	if err := index.IndexDocument(doc); err != nil {
-		t.Fatal(err)
-	} else {
-		json.Print("index", index)
-		json.Print("doc", doc)
-	}
-	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
-		t.Fatal(err)
-	} else {
-		json.Print("数学", ids)
-	}
-	if err := index.DeleteDocument(doc.ID); err != nil {
+	defer clean(t)
+	indexSomeDocs(t, 1)
+
+	var err error
+	index, err := GetIndex(indexName)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
-		t.Fatal(err)
-	} else {
-		json.Print("After DeleteDocument, search `数学`", ids)
+	defer func() {
+		log.Println("Delete Index.")
+		if err := index.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	var doc *Document
+	doc, err = index.GetDocument(firstDocID)
+	if err != nil {
+		t.Errorf("index.GetDocument: %s", err)
 	}
-	log.Println("Delete Index.")
-	if err := index.Delete(); err != nil {
-		t.Fatal(err)
+	json.Print("before delete, document", doc)
+
+	// delete document
+	err = index.DeleteDocument(firstDocID)
+	if err != nil {
+		t.Errorf("index.DeleteDocument: %s", err)
 	}
+
+	doc, err = index.GetDocument(firstDocID)
+	if err != errors.ErrDocumentNotFound {
+		t.Errorf("index.GetDocument: %s", err)
+	}
+	if doc != nil && doc.Found {
+		t.Error("document not deleted")
+	}
+	json.Print("after delete, document", doc)
 }
 
 func TestUpdateDocument(t *testing.T) {
 	prepare(t)
-	index := NewIndex(WithName(indexName), WithStorage("bolt"), WithTokenizer("jieba"))
-	m := make(map[string]interface{})
-	_ = json.Unmarshal([]byte(raw), &m)
-	doc := NewDocument(m)
-	duration := util.ExecTime(func() {
-		if err := index.IndexDocument(doc); err != nil {
+	defer clean(t)
+	indexSomeDocs(t, 1)
+
+	var err error
+	index, err := GetIndex(indexName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		log.Println("Delete Index.")
+		if err := index.Delete(); err != nil {
 			t.Fatal(err)
-		} else {
-			json.Print("index", index)
-			json.Print("doc", doc)
 		}
-	})
-	log.Println("IndexDocument costs: ", duration)
-	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
-		t.Fatal(err)
-	} else {
-		json.Print("Before update, search `数学`", ids)
+	}()
+
+	var doc *Document
+	doc, err = index.GetDocument(firstDocID)
+	if err != nil {
+		t.Errorf("index.GetDocument: %s", err)
 	}
-	//change the doc source.
-	doc.Source = map[string]interface{}{}
-	duration = util.ExecTime(func() {
-		if err := index.UpdateDocument(doc); err != nil {
-			t.Fatal(err)
-		} else {
-			json.Print("index", index)
-			json.Print("doc", doc)
+	json.Print("before update, document", doc)
+
+	// delete document
+	err = index.UpdateDocumentPartially(firstDocID, map[string]interface{}{"text": "updated partially"})
+	if err != nil {
+		t.Errorf("index.UpdateDocumentPartially: %s", err)
+	}
+
+	doc, err = index.GetDocument(firstDocID)
+	if err != nil {
+		t.Errorf("index.GetDocument: %s", err)
+	}
+	if source, ok := doc.Source.(map[string]interface{}); ok {
+		if source["text"] != "updated partially" {
+			t.Error("document not updated")
 		}
-	})
-	log.Println("UpdateDocument costs: ", duration)
-	if ids, err := index.GetIDsByKeyword("数学"); err != nil {
-		t.Fatal(err)
-	} else {
-		json.Print("After update, search `数学`", ids)
 	}
-	log.Println("Delete Index.")
-	if err := index.Delete(); err != nil {
-		t.Fatal(err)
-	}
+	json.Print("after update, document", doc)
 }
 
+/*
 func TestBulkIndexDocument1000(t *testing.T) {
 	bulkIndexDocument(t, 1000)
 }
