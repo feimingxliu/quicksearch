@@ -1,250 +1,130 @@
 package core
 
 import (
-	"context"
-	"fmt"
+	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/document"
+	imapping "github.com/blevesearch/bleve/v2/mapping"
+	bindex "github.com/blevesearch/bleve_index_api"
 	"github.com/feimingxliu/quicksearch/pkg/errors"
+	"github.com/feimingxliu/quicksearch/pkg/util"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
-	"github.com/feimingxliu/quicksearch/pkg/util/maps"
-	"github.com/feimingxliu/quicksearch/pkg/util/slices"
-	"golang.org/x/sync/errgroup"
-	"strings"
 	"time"
 )
 
-//IndexDocument adds a doc to the index.
-func (index *Index) IndexDocument(doc *Document) error {
-	if doc == nil {
-		return nil
-	}
-	if err := index.Open(); err != nil {
-		return err
-	}
-	doc.IndexName = index.Name
-	doc.Index = index
-	//update index metadata.
-	index.SetTimestamp(doc.Timestamp.UnixNano())
-	index.rwMutex.Lock()
-	index.DocNum++
-	index.UpdateAt = time.Now()
-	index.rwMutex.Unlock()
-	//write to db.
-	if err := index.UpdateMetadata(); err != nil {
-		return err
-	}
-	//extract tokens and add or update inverted index.
-	flatDoc := maps.Flatten(doc.Source)
-	keywords := make(map[string]struct{})
-	for _, value := range flatDoc {
-		//this casts both string and number to string.
-		s := fmt.Sprint(value)
-		//filter blank token.
-		kws := slices.RemoveEmptyStr(slices.FilterStr(index.tokenizer.Tokenize(s), func(token string) string {
-			return strings.TrimSpace(slices.RemovePunctuation(token))
-		}))
-		for _, token := range kws {
-			if _, ok := keywords[token]; !ok {
-				keywords[token] = struct{}{}
-			}
-		}
-	}
-	doc.KeyWords = make([]string, 0, len(keywords))
-	for kw := range keywords {
-		doc.KeyWords = append(doc.KeyWords, kw)
-	}
-	err := index.MapKeywordsDoc(doc.KeyWords, doc.ID)
-	if err != nil {
-		return err
-	}
-	//write doc into db.
-	b, err := json.Marshal(doc)
-	if err != nil {
-		return err
-	}
-	err = index.store.Set(doc.ID, b)
-	if err != nil {
-		return err
-	}
-	return nil
+type Document struct {
+	Index       string      `json:"_index"`
+	ID          string      `json:"_id"`
+	Version     int64       `json:"_version"`
+	SeqNo       int64       `json:"_seq_no"`
+	PrimaryTerm int64       `json:"_primary_term"`
+	Found       bool        `json:"found"`
+	Source      interface{} `json:"_source"`
 }
 
-//UpdateDocument updates a existing doc in the index.
-func (index *Index) UpdateDocument(doc *Document) error {
-	if doc == nil {
-		return nil
-	}
-	if err := index.Open(); err != nil {
+// IndexOrUpdateDocument indexes or update a document refers to `index`
+func (index *Index) IndexOrUpdateDocument(docID string, source map[string]interface{}) error {
+	shard := index.getDocShard(docID)
+	doc, err := index.buildBleveDocument(docID, source, nil)
+	if err != nil {
 		return err
 	}
-	//remove old keyword doc map.
-	if bdoc, err := index.store.Get(doc.ID); err == nil {
-		//shadowed doc.
-		doc := new(Document)
-		if err = json.Unmarshal(bdoc, doc); err != nil {
-			return err
-		}
-		if err = index.UnMapKeywordsDoc(doc.KeyWords, doc.ID); err != nil {
-			return err
-		}
-	} else {
+	idx, err := shard.Indexer.Advanced()
+	if err != nil {
+		return err
+	}
+	return idx.Update(doc)
+}
+
+// UpdateDocumentPartially can update part fields of indexed document.
+func (index *Index) UpdateDocumentPartially(docID string, fields map[string]interface{}) error {
+	// check if exists
+	doc, err := index.GetDocument(docID)
+	if err != nil {
+		return err
+	}
+	if !doc.Found {
 		return errors.ErrDocumentNotFound
 	}
-	doc.IndexName = index.Name
-	doc.Index = index
-	//update index metadata.
-	index.SetTimestamp(doc.Timestamp.UnixNano())
-	index.rwMutex.Lock()
-	index.UpdateAt = time.Now()
-	index.rwMutex.Unlock()
-	//write to db.
-	if err := index.UpdateMetadata(); err != nil {
-		return err
+	// this assert must success
+	source := doc.Source.(map[string]interface{})
+	for k, v := range fields {
+		source[k] = v
 	}
-	//extract tokens and add or update inverted index.
-	flatDoc := maps.Flatten(doc.Source)
-	keywords := make(map[string]struct{})
-	for _, value := range flatDoc {
-		//this casts both string and number to string.
-		s := fmt.Sprint(value)
-		//filter blank token.
-		kws := slices.RemoveEmptyStr(slices.FilterStr(index.tokenizer.Tokenize(s), func(token string) string {
-			return strings.TrimSpace(token)
-		}))
-		for _, token := range kws {
-			if _, ok := keywords[token]; !ok {
-				keywords[token] = struct{}{}
-			}
-		}
-	}
-	doc.KeyWords = make([]string, 0, len(keywords))
-	for kw := range keywords {
-		doc.KeyWords = append(doc.KeyWords, kw)
-	}
-	err := index.MapKeywordsDoc(doc.KeyWords, doc.ID)
-	if err != nil {
-		return err
-	}
-	//write doc into db.
-	b, err := json.Marshal(doc)
-	if err != nil {
-		return err
-	}
-	err = index.store.Set(doc.ID, b)
-	if err != nil {
-		return err
-	}
-	return nil
+	return index.IndexOrUpdateDocument(docID, source)
 }
 
-//RetrieveDocument returns the doc with docID from index.
-func (index *Index) RetrieveDocument(docID string) (*Document, error) {
-	if bdoc, err := index.store.Get(docID); err == nil {
-		//shadowed doc.
-		doc := new(Document)
-		if err = json.Unmarshal(bdoc, doc); err != nil {
+// GetDocument returns the doc associated with docID
+func (index *Index) GetDocument(docID string) (*Document, error) {
+	doc := &Document{
+		Index:       index.Name,
+		ID:          docID,
+		Version:     1,
+		SeqNo:       1,
+		PrimaryTerm: 1,
+		Found:       false,
+	}
+	shard := index.getDocShard(docID)
+	bdoc, err := shard.Indexer.Document(docID)
+	if err != nil {
+		return doc, err
+	}
+	if bdoc == nil {
+		return doc, errors.ErrDocumentNotFound
+	}
+	source := make(map[string]interface{})
+	bdoc.VisitFields(func(field bindex.Field) {
+		if field.Name() == "_source" {
+			err = json.Unmarshal(field.Value(), &source)
+		}
+	})
+	doc.Source = source
+	doc.Found = true
+	return doc, err
+}
+
+// DeleteDocument try to delete the document from index, do not check if it exists
+func (index *Index) DeleteDocument(docID string) error {
+	shard := index.getDocShard(docID)
+	return shard.Indexer.Delete(docID)
+}
+
+func (index *Index) buildBleveDocument(docID string, source map[string]interface{}, mapping imapping.IndexMapping) (*document.Document, error) {
+	// add `@timestamp` field
+	var err error
+	doc := document.NewDocument(docID)
+	if mapping != nil {
+		if err = mapping.MapDocument(doc, source); err != nil {
 			return nil, err
 		}
 		return doc, nil
+	}
+	if index.Mapping == nil {
+		mapping = bleve.NewIndexMapping()
 	} else {
-		if err == errors.ErrKeyNotFound {
-			return nil, nil
-		} else {
+		mapping, err = buildIndexMapping(index.Mapping)
+		if err != nil {
 			return nil, err
 		}
 	}
+	if err = mapping.MapDocument(doc, source); err != nil {
+		return nil, err
+	}
+	// add more fields
+	doc.AddIDField()
+	b, _ := json.Marshal(source)
+	sf := document.NewTextFieldWithIndexingOptions("_source", nil, b, bindex.StoreField)
+	doc.AddField(sf)
+	dtf, err := document.NewDateTimeField("@timestamp", nil, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	doc.AddField(dtf)
+	cf := document.NewCompositeFieldWithIndexingOptions("_all", true, nil, []string{"_id", "_index", "_source", "@timestamp"}, bindex.IndexField)
+	doc.AddField(cf)
+	return doc, nil
 }
 
-//DeleteDocument deletes the doc from index.
-func (index *Index) DeleteDocument(docID string) error {
-	if len(docID) == 0 {
-		return nil
-	}
-	if err := index.Open(); err != nil {
-		return err
-	}
-	//check doc exists and update the inverted index.
-	if bdoc, err := index.store.Get(docID); err == nil {
-		doc := new(Document)
-		if err = json.Unmarshal(bdoc, doc); err != nil {
-			return err
-		}
-		if err = index.UnMapKeywordsDoc(doc.KeyWords, doc.ID); err != nil {
-			return err
-		}
-	} else {
-		return nil
-	}
-	//update index metadata.
-	index.rwMutex.Lock()
-	index.DocNum--
-	index.UpdateAt = time.Now()
-	index.rwMutex.Unlock()
-	if err := index.UpdateMetadata(); err != nil {
-		return err
-	}
-	//delete the doc.
-	return index.store.Delete(docID)
-}
-
-//BulkDocuments adds docs to the index, it does not check for updated doc.
-func (index *Index) BulkDocuments(docs []*Document) error {
-	if len(docs) == 0 {
-		return nil
-	}
-	if err := index.Open(); err != nil {
-		return err
-	}
-	totalBulk := len(docs)
-	g, _ := errgroup.WithContext(context.Background())
-	for _, doc := range docs {
-		doc.IndexName = index.Name
-		doc.Index = index
-		//update index metadata.
-		index.SetTimestamp(doc.Timestamp.UnixNano())
-		//extract tokens and add or update inverted index.
-		flatDoc := maps.Flatten(doc.Source)
-		keywords := make([]string, 0)
-		for _, value := range flatDoc {
-			//this casts both string and number to string.
-			s := fmt.Sprint(value)
-			//filter the key char '/' and blank token.
-			kws := slices.RemoveEmptyStr(slices.FilterStr(index.tokenizer.Tokenize(s), func(token string) string {
-				return strings.TrimSpace(slices.RemovePunctuation(token))
-			}))
-			keywords = append(keywords, kws...)
-		}
-		doc.KeyWords = slices.DistinctStr(keywords)
-		copyDoc := doc
-		//Note: use Goroutine may run out of memory when bulk large quantity of docs.
-		g.Go(func() error {
-			err := index.MapKeywordsDoc(copyDoc.KeyWords, copyDoc.ID)
-			if err != nil {
-				return err
-			}
-			return nil
-		})
-		//write doc to db.
-		g.Go(func() error {
-			b, err := json.Marshal(copyDoc)
-			if err != nil {
-				return err
-			}
-			if err = index.store.Batch([]string{copyDoc.ID}, [][]byte{b}); err != nil {
-				return err
-			}
-			return nil
-		})
-	}
-	if err := g.Wait(); err != nil {
-		return err
-	}
-	index.rwMutex.Lock()
-	index.DocNum += uint64(totalBulk)
-	index.UpdateAt = time.Now()
-	index.rwMutex.Unlock()
-	//write index to db.
-	if err := index.UpdateMetadata(); err != nil {
-		return err
-	}
-	return nil
+func (index *Index) getDocShard(docID string) *IndexShard {
+	shardID := util.BytesModInt([]byte(docID), index.NumberOfShards)
+	return index.Shards[shardID]
 }

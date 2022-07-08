@@ -12,8 +12,14 @@ func Init(path string) error {
 
 type Config struct {
 	Env     string  `mapstructure:"env" json:"env" yaml:"env"`
-	Storage Storage `mapstructure:"storage" json:"storage" yaml:"meta-storage"`
+	Engine  Engine  `mapstructure:"engine" json:"engine" yaml:"engine"`
+	Storage Storage `mapstructure:"meta-storage" json:"storage" yaml:"meta-storage"`
 	Http    Http    `mapstructure:"http" json:"http" yaml:"http"`
+}
+
+type Engine struct {
+	DefaultNumberOfShards int `mapstructure:"default-number-of-shards" json:"default_number_of_shards" yaml:"default-number-of-shards"`
+	DefaultBatchSize      int `mapstructure:"default-batch-size" json:"default_batch_size" yaml:"default-batch-size"`
 }
 
 type Storage struct {

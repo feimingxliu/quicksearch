@@ -2,15 +2,15 @@ package storager
 
 type StorageType int
 
-//TODO: support badger.
-//types of storager
+// TODO: support badger.
+// types of storage
 const (
 	Bolt StorageType = iota
 	Leveldb
 	Default = Bolt
 )
 
-func NewStorager(st StorageType, dbPath string) Storager {
+func NewStorager(st StorageType, dbPath string) (Storager, error) {
 	switch st {
 	case Bolt:
 		return newBolt(dbPath)

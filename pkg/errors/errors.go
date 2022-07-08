@@ -7,9 +7,11 @@ import (
 
 //logic error.
 var (
-	ErrIndexNotFound      = errors.New("Index not found")
-	ErrDocumentNotFound   = errors.New("Document not found")
-	ErrCloneIndexSameName = errors.New("Cloned index name is same as origin")
+	ErrIndexNotFound          = errors.New("Index not found")
+	ErrInvalidMapping         = errors.New("invalid mapping")
+	ErrDocumentNotFound       = errors.New("Document not found")
+	ErrIndexAlreadyExists     = errors.New("The index already exists")
+	ErrIndexCloneNotSupported = errors.New("The index don't support clone")
 )
 
 //underlying db error.
