@@ -80,8 +80,6 @@ func NewIndex(opts ...Option) (*Index, error) {
 	if err := index.Open(); err != nil {
 		return nil, err
 	}
-	// store metadata.
-	_ = index.UpdateMetadata()
 	return index, nil
 }
 
@@ -133,9 +131,7 @@ func ListIndices() ([]*Index, error) {
 // GetIndex firstly search in mem, than find in db, in err == nil and index != nil, it's ready to use(opened).
 func GetIndex(name string) (*Index, error) {
 	if index := engine.getIndex(name); index != nil {
-		if err := index.Open(); err != nil {
-			return nil, err
-		}
+		// the index got from engine cache already opens
 		return index, nil
 	}
 	b, err := engine.meta.Get(name)

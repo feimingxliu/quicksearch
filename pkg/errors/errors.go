@@ -7,11 +7,12 @@ import (
 
 //logic error.
 var (
-	ErrIndexNotFound          = errors.New("Index not found")
+	ErrIndexNotFound          = errors.New("index not found")
 	ErrInvalidMapping         = errors.New("invalid mapping")
-	ErrDocumentNotFound       = errors.New("Document not found")
-	ErrIndexAlreadyExists     = errors.New("The index already exists")
-	ErrIndexCloneNotSupported = errors.New("The index don't support clone")
+	ErrDocumentNotFound       = errors.New("document not found")
+	ErrIndexAlreadyExists     = errors.New("the index already exists")
+	ErrIndexCloneNotSupported = errors.New("the index don't support clone")
+	ErrBulkDataFormat         = errors.New("error bulk data format")
 )
 
 //underlying db error.
