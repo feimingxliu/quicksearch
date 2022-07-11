@@ -1,43 +1,78 @@
 package core
 
-import "time"
+import (
+	"github.com/blevesearch/bleve/v2/search"
+	"time"
+)
 
 type SearchResult struct {
-	Took     string  `json:"took"`
-	TimedOut bool    `json:"timed_out"`
-	MaxScore float64 `json:"max_score"`
-	Hits     Hits    `json:"hits"`
-	Error    string  `json:"error,omitempty"`
+	Status    Status                  `json:"status"`
+	Request   *SearchRequest          `json:"request"`
+	Hits      Hits                    `json:"hits"`
+	TotalHits uint64                  `json:"total_hits"`
+	MaxScore  float64                 `json:"max_score"`
+	Took      time.Duration           `json:"took"`
+	Facets    map[string]*FacetResult `json:"facets"`
 }
 
-type Hits struct {
-	Total Total  `json:"total"`
-	Hits  []*Hit `json:"hits"`
+type Status struct {
+	Total      int `json:"total"`
+	Failed     int `json:"failed"`
+	Successful int `json:"successful"`
 }
 
-type Total struct {
-	Value int `json:"value"`
+type FacetResult struct {
+	Field         string              `json:"field"`
+	Total         int                 `json:"total"`
+	Missing       int                 `json:"missing"`
+	Other         int                 `json:"other"`
+	DateRanges    []DateRangeFacet    `json:"date_ranges,omitempty"`
+	NumericRanges []NumericRangeFacet `json:"numeric_ranges,omitempty"`
+	Terms         []TermFacet         `json:"terms,omitempty"`
+}
+
+type DateRangeFacet struct {
+	Name  string  `json:"name"`
+	Start *string `json:"start,omitempty"`
+	End   *string `json:"end,omitempty"`
+	Count int     `json:"count"`
+}
+
+type NumericRangeFacet struct {
+	Name  string   `json:"name"`
+	Min   *float64 `json:"min"`
+	Max   *float64 `json:"max"`
+	Count int      `json:"count"`
+}
+
+type TermFacet struct {
+	Term  string `json:"term"`
+	Count int    `json:"count"`
 }
 
 type Hit struct {
-	Index     string                 `json:"_index"`
-	Type      string                 `json:"_type"`
-	ID        string                 `json:"_id"`
-	Score     float64                `json:"_score"`
-	Timestamp time.Time              `json:"@timestamp"`
-	Source    map[string]interface{} `json:"_source"`
+	Index       string                      `json:"_index"`
+	ID          string                      `json:"_id"`
+	Score       float64                     `json:"_score"`
+	Sort        []string                    `json:"_sort"`
+	Timestamp   string                      `json:"@timestamp"`
+	Explanation *search.Explanation         `json:"_explanation,omitempty"`
+	Locations   search.FieldTermLocationMap `json:"_locations,omitempty"`
+	Fragments   search.FieldFragmentMap     `json:"_fragments,omitempty"`
+	Source      map[string]interface{}      `json:"_source,omitempty"`
+	Fields      map[string]interface{}      `json:"_fields,omitempty"`
 }
 
-type HitSlice []*Hit
+type Hits []*Hit
 
-func (h HitSlice) Len() int {
+func (h Hits) Len() int {
 	return len(h)
 }
 
-func (h HitSlice) Less(i, j int) bool {
+func (h Hits) Less(i, j int) bool {
 	return h[i].Score > h[j].Score
 }
 
-func (h HitSlice) Swap(i, j int) {
+func (h Hits) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
 }

@@ -24,7 +24,6 @@ type Engine struct {
 }
 
 func (e *Engine) Run() error {
-	e.Lock()
 	// the following call will use the global `engine`
 	engine = e
 	if err := e.initMeta(); err != nil {
@@ -33,7 +32,6 @@ func (e *Engine) Run() error {
 	if err := e.loadAllIndices(); err != nil {
 		return err
 	}
-	e.Unlock()
 	return nil
 }
 

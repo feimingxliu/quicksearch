@@ -167,6 +167,7 @@ func (index *Index) Open() error {
 			if err != nil {
 				return err
 			}
+			indexer.SetName(index.Name)
 			shard := &IndexShard{
 				ID:      i,
 				Indexer: indexer,
@@ -183,6 +184,7 @@ func (index *Index) Open() error {
 				index.mu.Unlock()
 				return err
 			}
+			indexer.SetName(index.Name)
 			shard.Indexer = indexer
 		}
 	}
@@ -338,12 +340,12 @@ func (index *Index) UpdateMetadataByShard(n int) {
 	}
 }
 
-// returns the index storage dir
+// returns the index storage dir.
 func (index *Index) dir() string {
 	return path.Join(config.Global.Storage.DataDir, "indices", index.Name)
 }
 
-// returns the index shard storage dir
+// returns the index shard storage dir.
 func (index *Index) shardDir(shard int) string {
 	return path.Join(index.dir(), fmt.Sprintf("%s_%d", index.UID, shard))
 }

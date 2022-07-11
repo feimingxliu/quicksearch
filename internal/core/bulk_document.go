@@ -260,7 +260,7 @@ func NewBulkActionResult(index string, docID string, result string, status int64
 	}
 }
 
-// BulkIndex bulk index(update if exists) docs into index
+// BulkIndex bulk index(update if exists) docs into index.
 func (index *Index) BulkIndex(docs []map[string]interface{}) error {
 	if len(docs) == 0 {
 		return nil
