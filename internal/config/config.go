@@ -18,8 +18,9 @@ type Config struct {
 }
 
 type Engine struct {
-	DefaultNumberOfShards int `mapstructure:"default-number-of-shards" json:"default_number_of_shards" yaml:"default-number-of-shards"`
-	DefaultBatchSize      int `mapstructure:"default-batch-size" json:"default_batch_size" yaml:"default-batch-size"`
+	DefaultNumberOfShards   int `mapstructure:"default-number-of-shards" json:"default_number_of_shards" yaml:"default-number-of-shards"`
+	DefaultBatchSize        int `mapstructure:"default-batch-size" json:"default_batch_size" yaml:"default-batch-size"`
+	DefaultSearchResultSize int `mapstructure:"default-search-result-size" json:"default_search_result_size" yaml:"default-search-result-size"`
 }
 
 type Storage struct {

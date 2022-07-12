@@ -2,6 +2,7 @@ package core
 
 import (
 	"bufio"
+	"bytes"
 	"github.com/feimingxliu/quicksearch/pkg/util"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"golang.org/x/sync/errgroup"
@@ -11,26 +12,83 @@ import (
 	"testing"
 )
 
+func TestBulk(t *testing.T) {
+	prepare(t)
+	defer clean(t)
+	bulkDocument(t, 10000, true)
+}
+
+func bulkDocument(t *testing.T, num int, clean bool) {
+	// build index mapping
+	m := make(map[string]interface{})
+	err := json.Unmarshal([]byte(docMapping), &m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	im, err := BuildIndexMappingFromMap(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index, err := NewIndex(WithName(indexName), WithIndexMapping(im), WithShards(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if clean {
+		defer func() {
+			log.Println("Delete Index.")
+			if err := index.Delete(); err != nil {
+				t.Fatal(err)
+			}
+		}()
+	}
+	f, err := os.OpenFile(docsFile, os.O_RDONLY, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scanner := bufio.NewScanner(f)
+
+	// build bulk
+	bulk := &bytes.Buffer{}
+	for i := 0; scanner.Scan() && i < num; i++ {
+		bulk.WriteString(`{"index": {}}`)
+		bulk.WriteByte('\n')
+		bulk.Write(scanner.Bytes())
+		if i < num-1 {
+			bulk.WriteByte('\n')
+		}
+	}
+
+	res, err := Bulk(indexName, bulk)
+	if err != nil {
+		t.Errorf("Bulk: %s", err)
+	}
+	log.Printf("Bulk %d docs costs: %s\n", num, res.Took)
+	err = index.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestBulkIndexDocument10000(t *testing.T) {
 	prepare(t)
 	defer clean(t)
-	bulkIndexDocument(t, 10000)
+	bulkIndexDocument(t, 10000, true)
 }
 
 func TestBulkIndexDocument100000(t *testing.T) {
 	prepare(t)
 	defer clean(t)
-	bulkIndexDocument(t, 100000)
+	bulkIndexDocument(t, 100000, true)
 }
 
 //go test -v -timeout 0 github.com/feimingxliu/quicksearch/internal/core -run 'BulkIndexDocument10000'  -memprofile mem.out
-func TestBulkIndexDocument1000000(t *testing.T) {
-	prepare(t)
-	defer clean(t)
-	bulkIndexDocument(t, 1000000)
-}
+//func TestBulkIndexDocument1000000(t *testing.T) {
+//	prepare(t)
+//	defer clean(t)
+//	bulkIndexDocument(t, 1000000, true)
+//}
 
-func bulkIndexDocument(t *testing.T, num int) {
+func bulkIndexDocument(t *testing.T, num int, clean bool) {
 	// build index mapping
 	m := make(map[string]interface{})
 	err := json.Unmarshal([]byte(docMapping), &m)
@@ -45,12 +103,14 @@ func bulkIndexDocument(t *testing.T, num int) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		log.Println("Delete Index.")
-		if err := index.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	if clean {
+		defer func() {
+			log.Println("Delete Index.")
+			if err := index.Delete(); err != nil {
+				t.Fatal(err)
+			}
+		}()
+	}
 	f, err := os.OpenFile(docsFile, os.O_RDONLY, 0600)
 	if err != nil {
 		t.Fatal(err)

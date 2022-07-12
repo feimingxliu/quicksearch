@@ -21,7 +21,7 @@ type Document struct {
 	Source      interface{} `json:"_source"`
 }
 
-// IndexOrUpdateDocument indexes or update a document refers to `index`
+// IndexOrUpdateDocument indexes or update a document refers to `index`.
 func (index *Index) IndexOrUpdateDocument(docID string, source map[string]interface{}) error {
 	shard := index.getDocShard(docID)
 	doc, err := index.buildBleveDocument(docID, source, nil)
@@ -53,7 +53,7 @@ func (index *Index) UpdateDocumentPartially(docID string, fields map[string]inte
 	return index.IndexOrUpdateDocument(docID, source)
 }
 
-// GetDocument returns the doc associated with docID
+// GetDocument returns the doc associated with docID.
 func (index *Index) GetDocument(docID string) (*Document, error) {
 	doc := &Document{
 		Index:       index.Name,
@@ -82,7 +82,7 @@ func (index *Index) GetDocument(docID string) (*Document, error) {
 	return doc, err
 }
 
-// DeleteDocument try to delete the document from index, do not check if it exists
+// DeleteDocument try to delete the document from index, do not check if it exists.
 func (index *Index) DeleteDocument(docID string) error {
 	shard := index.getDocShard(docID)
 	return shard.Indexer.Delete(docID)
@@ -92,6 +92,18 @@ func (index *Index) buildBleveDocument(docID string, source map[string]interface
 	// add `@timestamp` field
 	var err error
 	doc := document.NewDocument(docID)
+	// add more fields
+	doc.AddIDField()
+	b, _ := json.Marshal(source)
+	sf := document.NewTextFieldWithIndexingOptions("_source", nil, b, bindex.StoreField)
+	doc.AddField(sf)
+	dtf, err := document.NewDateTimeField("@timestamp", nil, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	doc.AddField(dtf)
+	cf := document.NewCompositeFieldWithIndexingOptions("_all", true, nil, []string{"_id", "_index", "_source", "@timestamp"}, bindex.IndexField)
+	doc.AddField(cf)
 	if mapping != nil {
 		if err = mapping.MapDocument(doc, source); err != nil {
 			return nil, err
@@ -109,18 +121,6 @@ func (index *Index) buildBleveDocument(docID string, source map[string]interface
 	if err = mapping.MapDocument(doc, source); err != nil {
 		return nil, err
 	}
-	// add more fields
-	doc.AddIDField()
-	b, _ := json.Marshal(source)
-	sf := document.NewTextFieldWithIndexingOptions("_source", nil, b, bindex.StoreField)
-	doc.AddField(sf)
-	dtf, err := document.NewDateTimeField("@timestamp", nil, time.Now())
-	if err != nil {
-		return nil, err
-	}
-	doc.AddField(dtf)
-	cf := document.NewCompositeFieldWithIndexingOptions("_all", true, nil, []string{"_id", "_index", "_source", "@timestamp"}, bindex.IndexField)
-	doc.AddField(cf)
 	return doc, nil
 }
 

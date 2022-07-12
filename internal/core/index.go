@@ -80,8 +80,6 @@ func NewIndex(opts ...Option) (*Index, error) {
 	if err := index.Open(); err != nil {
 		return nil, err
 	}
-	// store metadata.
-	_ = index.UpdateMetadata()
 	return index, nil
 }
 
@@ -133,9 +131,7 @@ func ListIndices() ([]*Index, error) {
 // GetIndex firstly search in mem, than find in db, in err == nil and index != nil, it's ready to use(opened).
 func GetIndex(name string) (*Index, error) {
 	if index := engine.getIndex(name); index != nil {
-		if err := index.Open(); err != nil {
-			return nil, err
-		}
+		// the index got from engine cache already opens
 		return index, nil
 	}
 	b, err := engine.meta.Get(name)
@@ -171,6 +167,7 @@ func (index *Index) Open() error {
 			if err != nil {
 				return err
 			}
+			indexer.SetName(index.Name)
 			shard := &IndexShard{
 				ID:      i,
 				Indexer: indexer,
@@ -187,6 +184,7 @@ func (index *Index) Open() error {
 				index.mu.Unlock()
 				return err
 			}
+			indexer.SetName(index.Name)
 			shard.Indexer = indexer
 		}
 	}
@@ -342,12 +340,12 @@ func (index *Index) UpdateMetadataByShard(n int) {
 	}
 }
 
-// returns the index storage dir
+// returns the index storage dir.
 func (index *Index) dir() string {
 	return path.Join(config.Global.Storage.DataDir, "indices", index.Name)
 }
 
-// returns the index shard storage dir
+// returns the index shard storage dir.
 func (index *Index) shardDir(shard int) string {
 	return path.Join(index.dir(), fmt.Sprintf("%s_%d", index.UID, shard))
 }

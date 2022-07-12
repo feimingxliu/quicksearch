@@ -2,6 +2,7 @@ env: debug # debug or prod.
 engine:
   default-number-of-shards: 5
   default-batch-size: 1000
+  default-search-result-size: 10
 storage:
   data-dir: data  # data directory
   meta-type: bolt # the underlying storage to store metadata

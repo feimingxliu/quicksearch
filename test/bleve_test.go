@@ -13,8 +13,10 @@ import (
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/yanyiwu/gojieba"
 	"log"
+	"math/rand"
 	"os"
 	"testing"
+	"time"
 )
 
 const (
@@ -24,10 +26,12 @@ const (
 )
 
 type document struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-	URL   string `json:"url"`
-	Text  string `json:"text"`
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	URL       string    `json:"url"`
+	Text      string    `json:"text"`
+	Num       float64   `json:"num"`
+	Timestamp time.Time `json:"@timestamp"`
 }
 
 func indexSomeDocs(t *testing.T, index bleve.Index) {
@@ -46,6 +50,8 @@ func indexSomeDocs(t *testing.T, index bleve.Index) {
 			if err := json.Unmarshal(scanner.Bytes(), doc); err != nil {
 				t.Fatal(err)
 			}
+			doc.Num = rand.Float64() * 2
+			doc.Timestamp = time.Now()
 			err := batch.Index(doc.ID, doc)
 			if err != nil {
 				t.Fatal(err)
@@ -108,6 +114,7 @@ func TestBleve(t *testing.T) {
 
 	// search
 	query := bleve.NewMatchQuery(`数学，是研究数量、结构以及空间等概念及其变化的一门学科，从某种角度看属於形式科学的一种`)
+	//query := bleve.NewQueryStringQuery(`数学，是研究数量、结构以及空间等概念及其变化的一门学科，从某种角度看属於形式科学的一种`)
 	query.SetBoost(1)
 	query.FieldVal = "text"
 	search := bleve.NewSearchRequest(query)
@@ -118,6 +125,15 @@ func TestBleve(t *testing.T) {
 	//search.Highlight = bleve.NewHighlight()
 	//search.Highlight.AddField("text")
 	search.IncludeLocations = false
+	termFacet := bleve.NewFacetRequest("id", 10)
+	min, max := 0.0, 1.0
+	numFacet := bleve.NewFacetRequest("num", 10)
+	numFacet.AddNumericRange("number range", &min, &max)
+	dateFacet := bleve.NewFacetRequest("@timestamp", 10)
+	dateFacet.AddDateTimeRange("time range", time.Now().Add(-300*time.Millisecond), time.Now())
+	search.AddFacet("Terms", termFacet)
+	search.AddFacet("Numeric Range", numFacet)
+	search.AddFacet("Date Range", dateFacet)
 	searchResults, err := index.Search(search)
 	if err != nil {
 		t.Fatal(err)
@@ -141,7 +157,7 @@ func TestBleve(t *testing.T) {
 		})
 	}
 
-	json.Print("stats", index.StatsMap())
+	//json.Print("stats", index.StatsMap())
 
 	err = index.Close()
 	if err != nil {
