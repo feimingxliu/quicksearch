@@ -160,11 +160,13 @@ func (index *Index) Open() error {
 		for i := 0; i < index.NumberOfShards; i++ {
 			mapping, err := buildIndexMapping(index.Mapping)
 			if err != nil {
+				index.mu.Unlock()
 				return err
 
 			}
 			indexer, err := bleve.New(index.shardDir(i), mapping)
 			if err != nil {
+				index.mu.Unlock()
 				return err
 			}
 			indexer.SetName(index.Name)
