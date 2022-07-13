@@ -4,6 +4,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/feimingxliu/quicksearch/internal/config"
+	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"github.com/feimingxliu/quicksearch/pkg/util/json"
 	"github.com/feimingxliu/quicksearch/pkg/util/slices"
 )
@@ -18,12 +19,22 @@ func (index *Index) Search(req *SearchRequest) (*SearchResult, error) {
 		Explain:          req.Explain,
 		Sort:             search.SortOrder{&search.SortScore{Desc: true}},
 		IncludeLocations: req.IncludeLocations,
-		SearchAfter:      req.SearchAfter,
-		SearchBefore:     req.SearchBefore,
+		SearchAfter: func() []string {
+			if len(req.SearchAfter) > 0 {
+				return req.SearchAfter
+			}
+			return nil
+		}(),
+		SearchBefore: func() []string {
+			if len(req.SearchBefore) > 0 {
+				return req.SearchBefore
+			}
+			return nil
+		}(),
 	}
 	source := true
 	fields := make(map[string]bool, len(request.Fields))
-	if request.Fields != nil {
+	if len(request.Fields) > 0 {
 		request.Fields = req.Fields
 		if !slices.ContainsStr(request.Fields, "*") && !slices.ContainsStr(request.Fields, "_all") {
 			source = false
@@ -38,7 +49,7 @@ func (index *Index) Search(req *SearchRequest) (*SearchResult, error) {
 	if req.Highlight {
 		request.Highlight = bleve.NewHighlight()
 	}
-	if req.Facets != nil {
+	if len(req.Facets) > 0 {
 		facets := make(map[string]*bleve.FacetRequest, len(req.Facets))
 		for name, fr := range req.Facets {
 			facet := bleve.NewFacetRequest(fr.Field, fr.Size)
@@ -52,7 +63,7 @@ func (index *Index) Search(req *SearchRequest) (*SearchResult, error) {
 		}
 		request.Facets = facets
 	}
-	if req.Sort != nil {
+	if len(req.Sort) > 0 {
 		so := search.ParseSortOrderStrings(req.Sort)
 		request.Sort = so
 	}
@@ -173,12 +184,22 @@ func Search(req *SearchRequest) (*SearchResult, error) {
 		Explain:          req.Explain,
 		Sort:             search.SortOrder{&search.SortScore{Desc: true}},
 		IncludeLocations: req.IncludeLocations,
-		SearchAfter:      req.SearchAfter,
-		SearchBefore:     req.SearchBefore,
+		SearchAfter: func() []string {
+			if len(req.SearchAfter) > 0 {
+				return req.SearchAfter
+			}
+			return nil
+		}(),
+		SearchBefore: func() []string {
+			if len(req.SearchBefore) > 0 {
+				return req.SearchBefore
+			}
+			return nil
+		}(),
 	}
 	source := true
 	fields := make(map[string]bool, len(request.Fields))
-	if request.Fields != nil {
+	if len(request.Fields) > 0 {
 		request.Fields = req.Fields
 		if !slices.ContainsStr(request.Fields, "*") && !slices.ContainsStr(request.Fields, "_all") {
 			source = false
@@ -193,7 +214,7 @@ func Search(req *SearchRequest) (*SearchResult, error) {
 	if req.Highlight {
 		request.Highlight = bleve.NewHighlight()
 	}
-	if req.Facets != nil {
+	if len(req.Facets) > 0 {
 		facets := make(map[string]*bleve.FacetRequest, len(req.Facets))
 		for name, fr := range req.Facets {
 			facet := bleve.NewFacetRequest(fr.Field, fr.Size)
@@ -207,7 +228,7 @@ func Search(req *SearchRequest) (*SearchResult, error) {
 		}
 		request.Facets = facets
 	}
-	if req.Sort != nil {
+	if len(req.Sort) > 0 {
 		so := search.ParseSortOrderStrings(req.Sort)
 		request.Sort = so
 	}
@@ -226,6 +247,9 @@ func Search(req *SearchRequest) (*SearchResult, error) {
 		for _, shard := range index.Shards {
 			indexes = append(indexes, shard.Indexer)
 		}
+	}
+	if len(indexes) == 0 {
+		return nil, errors.ErrIndexNotFound
 	}
 	indexAlias := bleve.NewIndexAlias(indexes...)
 	searchResult, err := indexAlias.Search(request)

@@ -15,4 +15,4 @@ FOR /F "tokens=* USEBACKQ" %%F IN (`git branch --show-current`) DO (SET BRANCH=%
 :: Build
 set LDFLAGS="-w -s -X github.com/feimingxliu/quicksearch/pkg/about.Branch=%BRANCH% -X github.com/feimingxliu/quicksearch/pkg/about.Version=%VERSION% -X 'github.com/feimingxliu/quicksearch/pkg/about.BuildDate=%BUILD_DATE%' -X github.com/feimingxliu/quicksearch/pkg/about.CommitHash=%COMMIT_HASH%"
 :: ECHO LDFLAGS: %LDFLAGS%
-go build -ldflags=%LDFLAGS% -o bin/quicksearch.exe github.com/feimingxliu/quicksearch/cmd/quicksearch
+go build -ldflags=%LDFLAGS% -tags=jsoniter -o bin/quicksearch.exe github.com/feimingxliu/quicksearch/cmd/quicksearch

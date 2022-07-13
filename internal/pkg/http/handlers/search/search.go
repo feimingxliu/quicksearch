@@ -1,38 +1,43 @@
 package search
 
 import (
+	"github.com/feimingxliu/quicksearch/internal/core"
+	"github.com/feimingxliu/quicksearch/internal/pkg/http/types"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 func Search(ctx *gin.Context) {
-	/*indexName := ctx.Param("index")
-	if len(indexName) == 0 {
-		ctx.JSON(http.StatusBadRequest, "index required!")
+	searchRequest := new(core.SearchRequest)
+	if err := ctx.ShouldBindJSON(searchRequest); err != nil {
+		ctx.JSON(http.StatusBadRequest, types.Common{Error: err.Error()})
 		return
 	}
-	params := types.Search{}
-	if err := ctx.ShouldBindJSON(&params); err != nil {
-		ctx.JSON(http.StatusBadRequest, types.Common{Acknowledged: false, Error: fmt.Sprintf("%+v", err)})
-		return
+	var (
+		index *core.Index
+		res   *core.SearchResult
+		err   error
+	)
+	indexName := ctx.Param("index")
+	if len(indexName) > 0 {
+		index, err = core.GetIndex(indexName)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, types.Common{Error: err.Error()})
+			return
+		}
 	}
-	if len(params.Query) == 0 {
-		ctx.JSON(http.StatusBadRequest, "query required!")
+	if index == nil {
+		res, err = core.Search(searchRequest)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, types.Common{Error: err.Error()})
+			return
+		}
+	} else {
+		res, err = index.Search(searchRequest)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, types.Common{Error: err.Error()})
+			return
+		}
 	}
-	if params.Timeout < 0 {
-		params.Timeout = 0
-	}
-	if params.TopN < 0 {
-		params.TopN = 10
-	}
-	index, err := core.GetIndex(indexName)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, types.Common{Acknowledged: false, Error: fmt.Sprintf("%+v", err)})
-		return
-	}
-	option := &core.SearchOption{}
-	result := index.Search(option.SetQuery(params.Query).SetTimeout(time.Duration(params.Timeout) * time.Second).SetTopN(params.TopN))
-	ctx.JSON(http.StatusOK, types.SearchResult{
-		Common:       types.Common{Acknowledged: true},
-		SearchResult: result,
-	})*/
+	ctx.JSON(http.StatusOK, res)
 }
