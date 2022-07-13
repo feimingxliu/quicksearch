@@ -98,6 +98,11 @@ func Get(ctx *gin.Context) {
 	if !ok {
 		return
 	}
+	err := index.UpdateMetadata()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, types.Common{Acknowledged: false, Error: fmt.Sprintf("%+v", err)})
+		return
+	}
 	ctx.JSON(http.StatusOK, index)
 }
 
@@ -106,6 +111,13 @@ func List(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, types.Common{Acknowledged: false, Error: fmt.Sprintf("%+v", err)})
 		return
+	}
+	for _, index := range indices {
+		err := index.UpdateMetadata()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, types.Common{Acknowledged: false, Error: fmt.Sprintf("%+v", err)})
+			return
+		}
 	}
 	ctx.JSON(http.StatusOK, indices)
 }

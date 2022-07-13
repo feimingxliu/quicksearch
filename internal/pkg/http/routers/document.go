@@ -13,8 +13,9 @@ func registerDocumentApi(r *gin.RouterGroup) {
 	r.PUT("/:index/_doc/:id", document.Update)
 	// bulk index document
 	r.POST("/:index/_bulk", document.Bulk)
+	r.POST("/_bulk", document.Bulk)
 	// get document
-	r.GET("/:index/_doc", document.Get)
+	r.GET("/:index/_doc/:id", document.Get)
 	// delete document
-	r.DELETE("/:index/_doc", document.Delete)
+	r.DELETE("/:index/_doc/:id", document.Delete)
 }
