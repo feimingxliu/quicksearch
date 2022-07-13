@@ -13,7 +13,7 @@ func Init(path string) error {
 type Config struct {
 	Env     string  `mapstructure:"env" json:"env" yaml:"env"`
 	Engine  Engine  `mapstructure:"engine" json:"engine" yaml:"engine"`
-	Storage Storage `mapstructure:"meta-storage" json:"storage" yaml:"meta-storage"`
+	Storage Storage `mapstructure:"storage" json:"storage" yaml:"storage"`
 	Http    Http    `mapstructure:"http" json:"http" yaml:"http"`
 }
 

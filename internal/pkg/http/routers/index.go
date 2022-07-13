@@ -8,8 +8,8 @@ import (
 func registerIndexApi(r *gin.RouterGroup) {
 	// create index
 	r.POST("/:index", index.Create)
-	// update index
-	r.PUT("/:index", index.Update)
+	// update index mapping
+	r.PUT("/:index/_mapping", index.UpdateMapping)
 	// delete index
 	r.DELETE("/:index", index.Delete)
 	// get index
