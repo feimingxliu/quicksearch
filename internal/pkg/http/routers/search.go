@@ -9,4 +9,6 @@ func registerSearchApi(r *gin.RouterGroup) {
 	// search in index
 	r.GET("/:index/_search", search.Search)
 	r.POST("/:index/_search", search.Search)
+	r.GET("_search", search.Search)
+	r.POST("_search", search.Search)
 }

@@ -160,11 +160,13 @@ func (index *Index) Open() error {
 		for i := 0; i < index.NumberOfShards; i++ {
 			mapping, err := buildIndexMapping(index.Mapping)
 			if err != nil {
+				index.mu.Unlock()
 				return err
 
 			}
 			indexer, err := bleve.New(index.shardDir(i), mapping)
 			if err != nil {
+				index.mu.Unlock()
 				return err
 			}
 			indexer.SetName(index.Name)
@@ -292,10 +294,6 @@ func (index *Index) Clone(name string) error {
 	if err := clone.Open(); err != nil {
 		return err
 	}
-	// write metadata.
-	if err := clone.UpdateMetadata(); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -329,8 +327,10 @@ func (index *Index) UpdateMetadataByShard(n int) {
 	}
 	docNum, _ := shard.Indexer.DocCount()
 	var storageSize uint64
-	if n, ok := shard.Indexer.StatsMap()["CurOnDiskBytes"].(uint64); ok {
-		storageSize = n
+	if stats, ok := shard.Indexer.StatsMap()["index"].(map[string]interface{}); ok {
+		if n, ok := stats["CurOnDiskBytes"].(uint64); ok {
+			storageSize = n
+		}
 	}
 	if docNum > 0 {
 		shard.DocNum = docNum

@@ -36,7 +36,6 @@ func (e *Engine) Run() error {
 }
 
 func (e *Engine) Stop() error {
-	e.Lock()
 	if err := e.closeAllIndices(); err != nil {
 		return err
 	}
@@ -44,7 +43,6 @@ func (e *Engine) Stop() error {
 		return err
 	}
 	engine = nil
-	e.Unlock()
 	return nil
 }
 
