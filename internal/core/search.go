@@ -34,8 +34,9 @@ func (index *Index) Search(req *SearchRequest) (*SearchResult, error) {
 	}
 	source := true
 	fields := make(map[string]bool, len(request.Fields))
-	if len(request.Fields) > 0 {
+	if len(req.Fields) > 0 {
 		request.Fields = req.Fields
+		request.Fields = append(request.Fields, "@timestamp")
 		if !slices.ContainsStr(request.Fields, "*") && !slices.ContainsStr(request.Fields, "_all") {
 			source = false
 			for _, f := range request.Fields {
@@ -199,8 +200,9 @@ func Search(req *SearchRequest) (*SearchResult, error) {
 	}
 	source := true
 	fields := make(map[string]bool, len(request.Fields))
-	if len(request.Fields) > 0 {
+	if len(req.Fields) > 0 {
 		request.Fields = req.Fields
+		request.Fields = append(request.Fields, "@timestamp")
 		if !slices.ContainsStr(request.Fields, "*") && !slices.ContainsStr(request.Fields, "_all") {
 			source = false
 			for _, f := range request.Fields {
