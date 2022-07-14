@@ -20,3 +20,5 @@ func (q *QueryStringQuery) Searcher(i bindex.IndexReader, m imapping.IndexMappin
 	}
 	return qq.Searcher(i, m, options)
 }
+
+// todo: support more query
