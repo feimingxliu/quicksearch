@@ -21,6 +21,7 @@ require (
 	github.com/blevesearch/bleve_index_api v1.0.1
 	github.com/go-ego/gse v0.70.2
 	github.com/huichen/sego v0.0.0-20210824061530-c87651ea5c76
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/syndtr/goleveldb v1.0.0
 )
 
@@ -53,7 +54,6 @@ require (
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
