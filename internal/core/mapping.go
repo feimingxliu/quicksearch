@@ -13,7 +13,7 @@ type IndexMapping struct {
 	DefaultMapping  *DocumentMapping            `json:"default_mapping" mapstructure:"default_mapping"`
 	TypeField       *string                     `json:"type_field" mapstructure:"type_field"`
 	DefaultType     *string                     `json:"default_type" mapstructure:"default_type"`
-	DefaultAnalyzer *string                     `json:"default_analyzer" mapstructure:"default_analyzer"` // standard, jieba, gse, sego ...
+	DefaultAnalyzer *string                     `json:"default_analyzer" mapstructure:"default_analyzer"` // standard, gse, sego ...
 }
 
 type DocumentMapping struct {
