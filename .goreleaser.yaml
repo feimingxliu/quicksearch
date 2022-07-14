@@ -26,6 +26,14 @@ archives:
       windows: Windows
       386: i386
       amd64: x86_64
+    files:
+      - configs/*
+      - LICENSE*
+      - README*
+      - CHANGELOG*
+      - license*
+      - readme*
+      - changelog*
 checksum:
   name_template: 'checksums.txt'
 snapshot:
