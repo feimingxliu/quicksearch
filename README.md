@@ -33,243 +33,225 @@ quicksearch -c config.yaml
 
 + *Create Index*
 
-  ```
-
+```
 POST /<index>
 {
 "settings": <Index Settings>,
 "mappings": <Index Mappings>
 }
+```
 
-  ```
-  
-  The request boby can be ignored which use default.
-  
-  `<Index Settings>` is an object which contains index's setting
-  
-  ```
+The request boby can be ignored which use default.
+`<Index Settings>` is an object which contains index's setting
 
+```
 {
-"number_of_shards": int }
-
-  ```
-  
-  `<Index Mappings>` is an object which defines index's mapping
-  
-  ```
-
-{
-"types": {
-"Document Type": <Documnet Mapping>, ....
-"Document Type": <Documnet Mapping>
+  "number_of_shards": int 
 }
-"default_mapping": <Documnet Mapping>,
-"type_field": string,
-"default_type": string,
-"default_analyzer": string }
+```
 
-  ```
-  
-  `<Documnet Mapping>`  is an object which defines document's mapping
-  
-  ```
+`<Index Mappings>` is an object which defines index's mapping
+
+```
 
 {
-"disabled": bool, # disable this documnet mapping
-"properties": {
-"name": <Documnet Mapping> # this enables nested json },
-"fields": <Field Mapping>,
-"default_analyzer": string }
+	"types": {
+		"Document Type": <Documnet Mapping>, 
+		....
+		"Document Type": <Documnet Mapping>
+	}
+	"default_mapping": <Documnet Mapping>,
+	"type_field": string,
+	"default_type": string,
+	"default_analyzer": string 
+}
 
-  ```
-  
-  `<Field Mapping>` is an array which defines field level mapping
-  
-  ```
+```
+
+`<Documnet Mapping>`  is an object which defines document's mapping
+
+```
+
+{
+	"disabled": bool,	# disable this documnet mapping
+	"properties": {
+			"name": <Documnet Mapping>,	# this enables nested json
+			...
+			"name": <Documnet Mapping>
+		},
+	"fields": <Field Mapping>,
+	"default_analyzer": string 
+}
+```
+
+`<Field Mapping>` is an array which defines field level mapping
+
+```
 
 [
-# you can define one more field mapping for one field, that's why its array {
-"type": string, # support "keyword", "text", "datetime", "number", "boolean", "geopoint", "IP"
-"analyzer": string, # specifies the name of the analyzer to use for this field
-"store": bool, # indicates whether to store field values in the index
-"index": bool # indicates whether to analyze the field }
+	# you can define one more field mapping for one field, that's why its array {
+	"type": string,	# support "keyword", "text", "datetime", "number", "boolean", "geopoint", "IP"
+	"analyzer": string,	# specifies the name of the analyzer to use for this field
+	"store": bool,	# indicates whether to store field values in the index
+	"index": bool	# indicates whether to analyze the field }
 ]
 
-  ```
-  
-+ *Update Index Mapping*
-  
-  ```
+```
 
++ *Update Index Mapping*
+
+```
 PUT /<index>/_mapping
 <Index Mapping>
+```
 
-  ```
-  
 + *Get Index Detail*
 
-  ```
-
+```
 GET /<index>
-
-  ```
+```
 
 + *Open Index*
 
-  ```
-
+```
 POST /<index>/_open
-
-  ```
+```
 
 + *Close Index*
 
-  ```
-
+```
 POST /<index>/_close
-
-  ```
+```
 
 + *Clone Index*
 
-  ```
-
+```
 POST /<index>/_clone/<cloned index>
-
-  ```
+```
 
 + *List Indices*
 
-  ```
-
+```
 GET /_all
-
-  ```
+```
 
 + *Delete Index*
 
-  ```
-
+```
 DELETE /<index>
-
-  ```
+```
 
 #### Document API
 
 + *Index Document*
 
-  ```
-
+```
 POST /<index>/_doc
 <document json object>
-
 # or with custom documnet id
-
 POST /<index>/_doc/<docID>
 <document json object>
-
-  ```
+```
 
   If index a document with same docID, the newer one will cover old fully.
 
 + *Bulk*
 
-  ```
-
+```
 POST /_bulk POST /<index>/_bulk
 <Action Line>
 <optional document json object>
 ......
 <Action Line>
 <optional document json object>
-
-  ```
+```
 
   `<Action Line>` is an obejct defines which operation to execute
 
-  ```
-
-{ # <Action> can be `create`, `delete`, `index`, `update`
-<Action>: {
-"_index": string,
-"_id": string } }
-
-  ```
+```
+{ 
+	# <Action> can be `create`, `delete`, `index`, `update`
+	<Action>: {
+		"_index": string,
+		"_id": string 
+		} 
+}
+```
 
 + *Update Document*
 
-  ```
-
+```
 PUT /<index>/_doc/<docID>
 {
-"fieldName": any }
-
-  ```
+	"fieldName": any 
+}
+```
 
   This can update part fields of document.
 
 + *Get Document*
 
-  ```
-
+```
 GET /<index>/_doc/<docID>
-
-  ```
+```
 
 + *Delete Document*
 
-  ```
-
+```
 DELETE /<index>/_doc/<docID>
-
-  ```
+```
 
 #### Search API
 
 ```
-
-POST /<index>/_search GET /<index>/_search POST /_search GET /_search { {
-"query": <Query>,
-"size": int,
-"from": int,
-"highlight": bool,
-"fields": []string,
-"facets": {
-<facet name>: {
-"size": int,
-"field": string,
-"numeric_ranges": [
-{
-"name": string,
-"min": float64,
-"max": float64 }
-],
-"date_ranges": [
-{
-"name": string,
-"start": datetime, # RFC3339
-"end": datetime # RFC3339 }
-]
-} },
-"explain": bool,
-"sort": []sting,
-"includeLocations": bool,
-"search_after": []sting,
-"search_before": []string } }
-
+POST /<index>/_search
+GET /<index>/_search
+POST /_search 
+GET /_search 
+{ 
+	"query": <Query>,
+	"size": int,
+	"from": int,
+	"highlight": bool,
+	"fields": []string,
+	"facets": {
+		<facet name>: {
+            "size": int,
+            "field": string,
+            "numeric_ranges": [
+                {
+                    "name": string,
+                    "min": float64,
+                    "max": float64
+                }
+            ],
+            "date_ranges": [
+                {
+                    "name": string,
+                    "start": datetime, # RFC3339
+                    "end": datetime # RFC3339 
+                }
+            ]
+         } 
+     },
+     "explain": bool,
+     "sort": []sting,
+     "includeLocations": bool,
+     "search_after": []sting,
+     "search_before": []string 
+}
 ```
 
 `<Query>` indicates different query
 
 + *Query String Query*
 
-  ```
-
+```
 {
-"query": string,
-"boost": int }
-
-  ```
+	"query": string,
+	"boost": int 
+}
+```
 
   This is the simplest query for search, see  [full query language specification](http://blevesearch.com/docs/Query-String-Query/).
 
