@@ -112,8 +112,13 @@ func List(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, types.Common{Acknowledged: false, Error: fmt.Sprintf("%+v", err)})
 		return
 	}
-	for _, index := range indices {
-		err := index.UpdateMetadata()
+	for i := range indices {
+		indices[i], err = core.GetIndex(indices[i].Name)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, types.Common{Acknowledged: false, Error: fmt.Sprintf("%+v", err)})
+			return
+		}
+		err := indices[i].UpdateMetadata()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, types.Common{Acknowledged: false, Error: fmt.Sprintf("%+v", err)})
 			return
