@@ -3,8 +3,8 @@
 ### Introduction
 
 Quicksearch is a lightweight search engine which deploys and runs as a single binary. It's inspired
-by [Zinc](https://github.com/zinclabs/zinc) but it use [Bleve](https://github.com/blevesearch/bleve) as underlying
-indexing library. It just supports local storage now.
+by [Zinc](https://github.com/zinclabs/zinc) but it uses [Bleve](https://github.com/blevesearch/bleve) as underlying
+indexing library and supports chinese by default. It just supports local storage now.
 
 ### Getting Started
 
@@ -16,7 +16,7 @@ go install github.com/feimingxliu/quicksearch/cmd/quicksearch@latest
 // or `go get -u github.com/feimingxliu/quicksearch/cmd/quicksearch` for go < 1.16
  ```
 
-This will generate binary in your `$GOPATH/bin`. Or you can get the prebuild binary
+This will generate binary in your `$GOPATH/bin`. Or you can get the prebuilt binary
 from [Releases](https://github.com/feimingxliu/quicksearch/releases).
 
 To run the quicksearch. Copy the example config.
@@ -36,17 +36,17 @@ quicksearch -c config.yaml
 ```
 POST /<index>
 {
-"settings": <Index Settings>,
-"mappings": <Index Mappings>
+    "settings": <Index Settings>,
+    "mappings": <Index Mappings>
 }
 ```
 
-The request boby can be ignored which use default.
+The request body can be ignored which use default.
 `<Index Settings>` is an object which contains index's setting
 
 ```
 {
-  "number_of_shards": int 
+    "number_of_shards": int 
 }
 ```
 
@@ -158,7 +158,8 @@ POST /<index>/_doc/<docID>
 + *Bulk*
 
 ```
-POST /_bulk POST /<index>/_bulk
+POST /_bulk 
+POST /<index>/_bulk
 <Action Line>
 <optional document json object>
 ......
@@ -166,7 +167,7 @@ POST /_bulk POST /<index>/_bulk
 <optional document json object>
 ```
 
-  `<Action Line>` is an obejct defines which operation to execute
+`<Action Line>` is an object defines which operation to execute.
 
 ```
 { 
@@ -174,7 +175,7 @@ POST /_bulk POST /<index>/_bulk
 	<Action>: {
 		"_index": string,
 		"_id": string 
-		} 
+	} 
 }
 ```
 
@@ -242,7 +243,7 @@ GET /_search
 }
 ```
 
-`<Query>` indicates different query
+`<Query>` indicates different query, see [Queries](http://blevesearch.com/docs/Query/).
 
 + *Query String Query*
 
@@ -253,7 +254,8 @@ GET /_search
 }
 ```
 
-  This is the simplest query for search, see  [full query language specification](http://blevesearch.com/docs/Query-String-Query/).
+This is the simplest query for search,
+see  [full query language specification](http://blevesearch.com/docs/Query-String-Query/).
 
 ### Run or build from source
 
@@ -290,7 +292,7 @@ bin/quicksearch -c configs/config.yaml
 
 ### Tests
 
-The test use some testdata which stores with [git-lfs](https://git-lfs.github.com/). After you have installed
+The tests use some testdata which stores with [git-lfs](https://git-lfs.github.com/). After you have installed
 the [git-lfs](https://git-lfs.github.com/), you can run
 
 ```sh
@@ -307,10 +309,10 @@ go run github.com/feimingxliu/quicksearch/cmd/xmltojson
 
 The above command will generate `test/testdata/zhwiki-20220601-abstract.json`, you can open it to see the content.
 
-In the end, just run all the tests by:
+In the end, just run all the tests by
 
 ```sh
 go test -timeout 0 ./...
 ```
 
-If everything works well, an `ok` wiill appear at the end of output.
+If everything works well, an `ok` will appear at the end of output.
