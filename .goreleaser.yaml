@@ -19,6 +19,12 @@ builds:
       - -X github.com/feimingxliu/quicksearch/pkg/about.Version={{.Version}}
       - -X github.com/feimingxliu/quicksearch/pkg/about.BuildDate={{.Date}}
       - -X github.com/feimingxliu/quicksearch/pkg/about.CommitHash={{.FullCommit}}
+dockers:
+  - image_templates:
+      - "hub.feimingxliu.top/feimingxliu/quicksearch:{{ .Tag }}"
+      - "hub.feimingxliu.top/feimingxliu/quicksearch:latest"
+    extra_files:
+      - configs/config.yaml
 archives:
   - replacements:
       darwin: Darwin

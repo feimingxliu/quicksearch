@@ -27,6 +27,14 @@ wget https://raw.githubusercontent.com/feimingxliu/quicksearch/master/configs/co
 quicksearch -c config.yaml
 ```
 
+Or use [Docker](https://docs.docker.com/get-docker/)
+
+```bash
+docker run -d -p 9200:9200 hub.feimingxliu.top/feimingxliu/quicksearch
+```
+
+Quicksearch will listen on [:9200](http://localhost:9200) by default.
+
 ### API Reference
 
 #### Index API

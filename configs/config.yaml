@@ -7,4 +7,4 @@ storage:
   data-dir: data  # data directory
   meta-type: bolt # the underlying storage to store metadata
 http:
-  addr: localhost:9200 # the http server listening at
+  addr: 0.0.0.0:9200 # the http server listening at
