@@ -21,14 +21,14 @@ jobs:
       - name: Build
         run: sudo go build ./...
 
-      - name: Install git-lfs
-        run: sudo apt install git-lfs && sudo git lfs install
-
-      - name: Fetch testdata
-        run: sudo git lfs pull
-
-      - name: Extract json file
-        run: sudo go run github.com/feimingxliu/quicksearch/cmd/xmltojson
-
-      - name: Test
-        run: sudo go test -timeout 0 ./...
+#      - name: Install git-lfs
+#        run: sudo apt install git-lfs && sudo git lfs install
+#
+#      - name: Fetch testdata
+#        run: sudo git lfs pull
+#
+#      - name: Extract json file
+#        run: sudo go run github.com/feimingxliu/quicksearch/cmd/xmltojson
+#
+#      - name: Test
+#        run: sudo go test -timeout 0 ./...

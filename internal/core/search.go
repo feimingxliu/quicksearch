@@ -44,11 +44,16 @@ func (index *Index) Search(req *SearchRequest) (*SearchResult, error) {
 			}
 		}
 	}
-	if req.Size == 0 {
+	if req.From <= 0 {
+		request.From = 0
+	}
+	if req.Size <= 0 {
 		request.Size = config.Global.Engine.DefaultSearchResultSize
 	}
-	if req.Highlight {
-		request.Highlight = bleve.NewHighlight()
+	if len(req.Highlight) > 0 {
+		highlight := bleve.NewHighlight()
+		highlight.Fields = req.Highlight
+		request.Highlight = highlight
 	}
 	if len(req.Facets) > 0 {
 		facets := make(map[string]*bleve.FacetRequest, len(req.Facets))
@@ -96,8 +101,10 @@ func (index *Index) Search(req *SearchRequest) (*SearchResult, error) {
 			Score:       dm.Score,
 			Sort:        dm.Sort,
 			Explanation: dm.Expl,
-			Locations:   dm.Locations,
 			Fragments:   dm.Fragments,
+		}
+		if req.IncludeLocations {
+			hit.Locations = dm.Locations
 		}
 		if source {
 			hit.Source = map[string]interface{}{}
@@ -210,11 +217,16 @@ func Search(req *SearchRequest) (*SearchResult, error) {
 			}
 		}
 	}
-	if req.Size == 0 {
+	if req.From <= 0 {
+		request.From = 0
+	}
+	if req.Size <= 0 {
 		request.Size = config.Global.Engine.DefaultSearchResultSize
 	}
-	if req.Highlight {
-		request.Highlight = bleve.NewHighlight()
+	if len(req.Highlight) > 0 {
+		highlight := bleve.NewHighlight()
+		highlight.Fields = req.Highlight
+		request.Highlight = highlight
 	}
 	if len(req.Facets) > 0 {
 		facets := make(map[string]*bleve.FacetRequest, len(req.Facets))
@@ -277,8 +289,10 @@ func Search(req *SearchRequest) (*SearchResult, error) {
 			Score:       dm.Score,
 			Sort:        dm.Sort,
 			Explanation: dm.Expl,
-			Locations:   dm.Locations,
 			Fragments:   dm.Fragments,
+		}
+		if req.IncludeLocations {
+			hit.Locations = dm.Locations
 		}
 		if source {
 			hit.Source = map[string]interface{}{}

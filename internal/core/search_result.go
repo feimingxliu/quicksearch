@@ -12,7 +12,7 @@ type SearchResult struct {
 	TotalHits uint64                  `json:"total_hits"`
 	MaxScore  float64                 `json:"max_score"`
 	Took      time.Duration           `json:"took"`
-	Facets    map[string]*FacetResult `json:"facets"`
+	Facets    map[string]*FacetResult `json:"facets,omitempty"`
 }
 
 type Status struct {

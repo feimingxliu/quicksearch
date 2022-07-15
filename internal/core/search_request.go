@@ -12,7 +12,7 @@ type SearchRequest struct {
 	Query            query.Query              `json:"query"`
 	Size             int                      `json:"size"`
 	From             int                      `json:"from"`
-	Highlight        bool                     `json:"highlight"`
+	Highlight        []string                 `json:"highlight"`
 	Fields           []string                 `json:"fields"`
 	Facets           map[string]*FacetRequest `json:"facets"`
 	Explain          bool                     `json:"explain"`
@@ -27,7 +27,7 @@ func (r *SearchRequest) UnmarshalJSON(input []byte) error {
 		Q                stdjson.RawMessage       `json:"query"`
 		Size             int                      `json:"size"`
 		From             int                      `json:"from"`
-		Highlight        bool                     `json:"highlight"`
+		Highlight        []string                 `json:"highlight"`
 		Fields           []string                 `json:"fields"`
 		Facets           map[string]*FacetRequest `json:"facets"`
 		Explain          bool                     `json:"explain"`

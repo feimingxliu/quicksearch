@@ -213,7 +213,7 @@ GET /_search
 	"query": <Query>,
 	"size": int,
 	"from": int,
-	"highlight": bool,
+	"highlight": []string, # fields to highlight
 	"fields": []string,
 	"facets": {
 		<facet name>: {

@@ -102,8 +102,8 @@ func (index *Index) buildBleveDocument(docID string, source map[string]interface
 		return nil, err
 	}
 	doc.AddField(dtf)
-	cf := document.NewCompositeFieldWithIndexingOptions("_all", true, nil, []string{"_id", "_index", "_source", "@timestamp"}, bindex.IndexField)
-	doc.AddField(cf)
+	//cf := document.NewCompositeFieldWithIndexingOptions("_all", true, nil, []string{"_id", "_index", "_source", "@timestamp"}, bindex.IndexField)
+	//doc.AddField(cf)
 	if mapping != nil {
 		if err = mapping.MapDocument(doc, source); err != nil {
 			return nil, err
