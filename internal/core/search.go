@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/feimingxliu/quicksearch/internal/config"
@@ -271,7 +270,6 @@ func Search(req *SearchRequest) (*SearchResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%+v \n", searchResult)
 	result := &SearchResult{
 		Status: Status{
 			Total:      searchResult.Status.Total,

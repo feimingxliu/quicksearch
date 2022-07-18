@@ -253,17 +253,204 @@ GET /_search
 
 `<Query>` indicates different query, see [Queries](http://blevesearch.com/docs/Query/).
 
-+ *Query String Query*
++ *QueryStringQuery* is the simplest query for search,
+  see  [full query language specification](http://blevesearch.com/docs/Query-String-Query/).
 
 ```
 {
-	"query": string,
-	"boost": int 
+  "query": string,
+  "boost": float64 
 }
 ```
 
-This is the simplest query for search,
-see  [full query language specification](http://blevesearch.com/docs/Query-String-Query/).
++ *TermQuery* 
+
+  A term query is the simplest possible query. It performs an exact match in the index for the provided term.
+
+  Most of the time users should use a Match Query instead.
+
+```
+{
+  "term": string,
+  "field": string
+}
+```
+
++ *MatchQuery*
+
+  A match query is like a term query, but the input text is analyzed first. An attempt is made to use the same analyzer that was used when the field was indexed.
+
+  The match query can optionally perform fuzzy matching. If the fuzziness parameter is set to a non-zero integer the analyzed text will be matched with the specified level of fuzziness. Also, the prefix_length parameter can be used to require that the term also have the same prefix of the specified length.
+
+```
+{
+  "match": string,
+  "field": string,
+  "analyzer": string,
+  "boost": float64,
+  "prefix_length": int,
+  "fuzziness": int,
+  "operator": string # "and" or "or"
+}
+```
+
++ *PhraseQuery*
+
+  A phrase query searches for terms occurring in the specified position and offsets.
+
+  The phrase query is performing an exact term match for all the phrase constituents. If you want the phrase to be analyzed, consider using the Match Phrase Query instead.
+
+```
+{
+  "terms": []string,
+  "field": string,
+  "boost": float64
+}
+```
+
++ *MatchPhraseQuery*
+
+  The match phrase query is like the phrase query, but the input text is analyzed and a phrase query is built with the terms resulting from the analysis. 
+
+```
+{
+  "match_phrase": string,
+  "analyzer": string,
+  "field": string,
+  "boost": float64
+}
+```
+
++ *PrefixQuery*
+
+  The prefix query finds documents containing terms that start with the provided prefix. 
+
+```
+{
+  "prefix": string,
+  "field": string,
+  "boost": float64
+}
+```
+
++ *FuzzyQuery*
+
+  A fuzzy query is a term query that matches terms within a specified edit distance (Levenshtein distance). Also, you can optionally specify that the term must have a matching prefix of the specified length. 
+
+```
+{
+  "term": string,
+  "field": string,
+  "boost": float64,
+  "prefix_length": int,
+  "fuzziness": int
+}
+```
+
++ *ConjunctionQuery*
+
+  The conjunction query is a compound query. Result documents must satisfy all of the child queries. 
+
+```
+{
+  "conjuncts": []<Query>,
+  "boost": 1
+}
+```
+
++ *DisjunctionQuery*
+
+  The disjunction query is a compound query. Result documents must satisfy a configurable `min` number of child queries. By default this `min` is set to 1. 
+
+```
+{
+  "disjuncts": []<Query>,
+  "boost": 1,
+  "min": 1
+}
+```
+
++ *BooleanQuery*
+
+  The boolean query is useful combination of conjunction and disjunction queries. The query takes three lists of queries:
+
+  - must - result documents must satisfy all of these queries
+  - should - result documents should satisfy at least `minShould` of these queries
+  - must not - result documents must not satisfy any of these queries
+
+  The `minShould` value is configurable, defaults to 0.
+
+```
+{
+  "must": <Query>, # must be *ConjunctionQuery* or *DisjunctionQuery*
+  "should": <Query>, # must be *ConjunctionQuery* or *DisjunctionQuery*
+  "must_not": <Query>, # must be *ConjunctionQuery* or *DisjunctionQuery*
+  "boost": 1
+}
+```
+
++ *NumericRangeQuery*
+
+  The numeric range query finds documents containing a numeric value in the specified field within the specified range. You can omit one endpoint, but not both. The `inclusiveMin` and `inclusiveMax` properties control whether or not the end points are included or excluded. 
+
+```
+{
+  "min": float64,
+  "max": float64,
+  "inclusive_min": bool,
+  "inclusive_max": bool,
+  "field": string,
+  "boost": float64
+}
+```
+
++ *DateRangeQuery*
+
+  The date range query finds documents containing a date value in the specified field within the specified range. You can omit one endpoint, but not both. The inclusiveStart and inclusiveEnd properties control whether or not the end points are included or excluded. 
+
+```
+{
+  "start": datetime,
+  "end": datetime,
+  "inclusive_start": bool,
+  "inclusive_end": bool,
+  "field": string,
+  "boost": float64
+}
+```
+
++ *MatchAllQuery*
+
+  The match all query will match all documents in the index.
+
+```
+{
+  "match_all": {},
+  "boost": float64
+}
+```
+
++ *MatchNoneQuery*
+
+  The match none query will not match any documents in the index. 
+
+```
+{
+  "match_none": {},
+  "boost": float64
+}
+```
+
++ *DocIDQuery*
+
+  The doc ID query will match only documents that contain one of the supplied document identifiers. 
+
+```
+{
+  "ids": []string,
+  "boost": 1
+}
+```
 
 ### Run or build from source
 
