@@ -2,6 +2,8 @@ package core
 
 import (
 	"github.com/blevesearch/bleve/v2/search"
+	"github.com/feimingxliu/quicksearch/pkg/util/json"
+	"math"
 	"time"
 )
 
@@ -50,10 +52,12 @@ type TermFacet struct {
 	Count int    `json:"count"`
 }
 
+type f64 float64
+
 type Hit struct {
 	Index       string                      `json:"_index"`
 	ID          string                      `json:"_id"`
-	Score       float64                     `json:"_score"`
+	Score       f64                         `json:"_score"`
 	Sort        []string                    `json:"_sort"`
 	Timestamp   string                      `json:"@timestamp"`
 	Explanation *search.Explanation         `json:"_explanation,omitempty"`
@@ -61,6 +65,14 @@ type Hit struct {
 	Fragments   search.FieldFragmentMap     `json:"_fragments,omitempty"`
 	Source      map[string]interface{}      `json:"_source,omitempty"`
 	Fields      map[string]interface{}      `json:"_fields,omitempty"`
+}
+
+func (f f64) MarshalJSON() ([]byte, error) {
+	if !math.IsNaN(float64(f)) {
+		return json.Marshal(float64(f))
+	} else {
+		return json.Marshal(0)
+	}
 }
 
 type Hits []*Hit
