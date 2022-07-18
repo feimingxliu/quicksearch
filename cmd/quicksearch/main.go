@@ -7,6 +7,8 @@ import (
 	"github.com/feimingxliu/quicksearch/internal/pkg/http/gin"
 	"github.com/feimingxliu/quicksearch/pkg/errors"
 	"log"
+	"os"
+	"os/signal"
 )
 
 func main() {
@@ -21,6 +23,7 @@ func main() {
 	if err := gin.ListenAndServe(); err != nil {
 		log.Printf("gin.ListenAndServe: %+v", errors.WithStack(err))
 	}
+	Shutdown()
 	// stop engine.
 	log.Println("stop engine...")
 	if err := engine.Stop(); err != nil {
@@ -39,4 +42,14 @@ func InitConfig() {
 	if err := config.Init(*configPath); err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func Shutdown() {
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		<-c
+		// twice ctrl c received
+		os.Exit(1)
+	}()
 }
