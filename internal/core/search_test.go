@@ -24,7 +24,7 @@ func TestSearchQueryStringQuery(t *testing.T) {
 		Query:     &QueryStringQuery{Query: "数学，是研究数量、结构以及空间等概念及其变化的一门学科，从某种角度看属於形式科学的一种"},
 		Size:      1,
 		From:      0,
-		Highlight: false,
+		Highlight: nil,
 		Fields:    []string{"*"},
 		Facets: map[string]*FacetRequest{
 			"terms": {
@@ -60,7 +60,7 @@ func TestSearchAllIndices(t *testing.T) {
 		Query:     &QueryStringQuery{Query: "数学，是研究数量、结构以及空间等概念及其变化的一门学科，从某种角度看属於形式科学的一种"},
 		Size:      1,
 		From:      0,
-		Highlight: false,
+		Highlight: nil,
 		Fields:    []string{"*"},
 		Facets: map[string]*FacetRequest{
 			"terms": {
