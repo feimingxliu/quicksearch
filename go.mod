@@ -19,6 +19,7 @@ require (
 require (
 	github.com/blevesearch/bleve/v2 v2.3.2
 	github.com/blevesearch/bleve_index_api v1.0.1
+	github.com/gin-contrib/cors v1.4.0
 	github.com/go-ego/gse v0.70.2
 	github.com/huichen/sego v0.0.0-20210824061530-c87651ea5c76
 	github.com/mitchellh/mapstructure v1.5.0
@@ -73,5 +74,5 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/feimingxliu/quicksearch/internal/config"
 	"github.com/feimingxliu/quicksearch/internal/pkg/http/routers"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
@@ -16,6 +17,14 @@ import (
 func ListenAndServe() error {
 	engine := gin.New()
 	engine.Use(gin.Recovery())
+	engine.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "DELETE", "PUT", "HEAD", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "authorization", "content-type"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 	if config.Global.Env == "debug" {
 		gin.SetMode(gin.DebugMode)
 		engine.Use(gin.Logger())
