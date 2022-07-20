@@ -19,10 +19,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16.16.0
-        run: sudo npm install --global yarn
 
       - name: Build frontend
-        run: cd web/web && sudo yarn && sudo yarn build
+        run: sudo npm install --global yarn
+      - run: cd web/web && sudo yarn && sudo yarn build
 
       - name: Set up Go
         uses: actions/setup-go@v3
