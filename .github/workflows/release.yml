@@ -20,7 +20,7 @@ jobs:
           node-version: 16.16.0
       - name: Build frontend
         run: sudo npm install --global yarn
-      - run: cd web/web && sudo yarn && sudo yarn build
+      - run: cd web/web && rm -f yarn.lock && sudo yarn && sudo yarn build
       - name: Set up Go
         uses: actions/setup-go@v3
       - name: Run GoReleaser
