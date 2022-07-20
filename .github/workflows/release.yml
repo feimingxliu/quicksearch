@@ -13,6 +13,14 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          submodules: true
+      - name: Set up NodeJs
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.16.0
+      - name: Build frontend
+      - run: sudo npm install --global yarn
+      - run: cd web/web && sudo yarn && sudo yarn build
       - name: Set up Go
         uses: actions/setup-go@v3
       - name: Run GoReleaser

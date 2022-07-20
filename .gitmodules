@@ -1,0 +1,3 @@
+[submodule "web/web"]
+	path = web/web
+	url = git@github.com:feimingxliu/quicksearch-web.git
