@@ -30,5 +30,4 @@ type Storage struct {
 
 type Http struct {
 	ServerAddr string `mapstructure:"server-addr" json:"server_addr" yaml:"server-addr"`
-	StaticAddr string `mapstructure:"static-addr" json:"static_addr" yaml:"static-addr"`
 }

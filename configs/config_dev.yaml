@@ -1,4 +1,4 @@
-env: prod # debug or prod.
+env: debug # debug or prod.
 engine:
   default-number-of-shards: 5
   default-batch-size: 1000
