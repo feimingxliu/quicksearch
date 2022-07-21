@@ -30,7 +30,7 @@ quicksearch -c config.yaml
 Or use [Docker](https://docs.docker.com/get-docker/) **(includes UI)**
 
 ```bash
-docker run -d -p 5601:5601 -p 9200:9200 hub.feimingxliu.top/feimingxliu/quicksearch
+docker run -d -p 9200:9200 feimingxliu/quicksearch
 ```
 
 Quicksearch server will listen on [:9200](http://localhost:9200) by default, open [:9200](http://localhost:9200)
