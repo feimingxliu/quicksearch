@@ -458,14 +458,20 @@ GET /_search
 To run the `quicksearch` from source, clone the repo firstly.
 
 ```sh
-git clone git@github.com:feimingxliu/quicksearch.git
-# or use 'git clone https://github.com/feimingxliu/quicksearch.git' if you don't set SSH key.
+git clone --recurse-submodules git@github.com:feimingxliu/quicksearch.git
+# or use 'git clone --recurse-submodules https://github.com/feimingxliu/quicksearch.git' if you don't set SSH key.
 ```
 
 Then download the dependencies.
 
 ```sh
 cd quicksearch && go mod tidy -compat=1.17 # go version >= 1.17
+```
+
+Build the frontend
+
+```sh
+yarn --cwd web/web && yarn --cwd web/web build
 ```
 
 Run the following command to start the `quicksearch`.
