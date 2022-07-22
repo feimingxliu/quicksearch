@@ -8,3 +8,7 @@ storage:
   meta-type: bolt # the underlying storage to store metadata
 http:
   server-addr: 0.0.0.0:9200 # the http server listening at
+  auth: # the http api authorization
+    enabled: true
+    username: admin
+    password: $2a$10$NE1erxRPrKaBTHRbE0BMduBvYKvKv6sijl3/NSU0pNR6BvQ.4D0vK

@@ -30,4 +30,11 @@ type Storage struct {
 
 type Http struct {
 	ServerAddr string `mapstructure:"server-addr" json:"server_addr" yaml:"server-addr"`
+	Auth       Auth   `mapstructure:"auth" json:"auth" yaml:"auth"`
+}
+
+type Auth struct {
+	Enabled  bool   `mapstructure:"enabled" json:"enabled" yaml:"enabled"`
+	Username string `mapstructure:"username" json:"username" yaml:"username"`
+	Password string `mapstructure:"password" json:"password" yaml:"password"`
 }

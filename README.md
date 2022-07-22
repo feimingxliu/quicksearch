@@ -35,6 +35,13 @@ docker run -d -p 9200:9200 feimingxliu/quicksearch
 
 Quicksearch server will listen on [:9200](http://localhost:9200) by default, open [:9200](http://localhost:9200)
 to view the UI.
+If you enable the `http.auth` in [config.yaml](configs/config.yaml), login with `admin:admin` by default.
+You can change the username `http.auth.username` directly in [config.yaml](configs/config.yaml), but change password follows below
+```sh
+go run github.com/feimingxliu/quicksearch/cmd/bcrypt -p $YourPassword
+```
+the above command with generate the bcrypt password hash, copy it to the `http.auth.password` in [config.yaml](configs/config.yaml).
+In this case, **note** the `http.auth.enabled` must be **true**.
 
 ### API Reference
 
