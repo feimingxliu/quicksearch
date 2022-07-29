@@ -1,5 +1,13 @@
 # QuickSearch
 
+## Contents
+
++ [Introduction](#introduction)
++ [Getting Started](#getting-started)
++ [API Reference](#api-reference)
++ [Run or build from source](#run-or-build-from-source)
++ [Tests](#tests)
+
 ### Introduction
 
 Quicksearch is a lightweight search engine which deploys and runs as a single binary. It's inspired
