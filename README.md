@@ -2,11 +2,24 @@
 
 ## Contents
 
++ [Screenshots](#screenshots)
 + [Introduction](#introduction)
 + [Getting Started](#getting-started)
 + [API Reference](#api-reference)
 + [Run or build from source](#run-or-build-from-source)
 + [Tests](#tests)
+
+### Screenshots
+
+**Login**
+![login](assets/login.png)
+![login-success](assets/login_success.png)
+---
+**Select an Index(default all)**
+![select-index](assets/select_index.png)
+---
+**Search**
+![search](assets/search.png)
 
 ### Introduction
 
