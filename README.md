@@ -1,5 +1,7 @@
 # QuickSearch
 
+[简体中文](README_zh.md)
+
 ## Contents
 
 + [Screenshots](#screenshots)
@@ -38,9 +40,9 @@ go install github.com/feimingxliu/quicksearch/cmd/quicksearch@latest
  ```
 
 This will generate binary in your `$GOPATH/bin`, note this **does not install UI**. Or you can get the prebuilt binary
-from [Releases](https://github.com/feimingxliu/quicksearch/releases) *which includes UI*.
+from [Releases](https://github.com/feimingxliu/quicksearch/releases) **which includes UI**.
 
-To run the quicksearch. Copy the example config.
+To run the Quicksearch. Copy the example config.
 
 ```bash
 wget https://raw.githubusercontent.com/feimingxliu/quicksearch/master/configs/config.yaml
@@ -48,7 +50,7 @@ wget https://raw.githubusercontent.com/feimingxliu/quicksearch/master/configs/co
 quicksearch -c config.yaml
 ```
 
-Or use [Docker](https://docs.docker.com/get-docker/) **(includes UI)**
+Or use [Docker](https://docs.docker.com/get-docker/) **(recommanded and includes UI)**
 
 ```bash
 docker run -d -p 9200:9200 feimingxliu/quicksearch
