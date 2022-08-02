@@ -35,4 +35,21 @@ func RegisterRoutes(engine *gin.Engine) {
 		registerDocumentApi(index)
 		registerSearchApi(index)
 	}
+	es := v1.Group("es")
+	registerESRoutes(es)
+}
+
+func registerESRoutes(r *gin.RouterGroup) {
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, about.NewESInfo(c))
+	})
+	r.GET("/_license", func(c *gin.Context) {
+		c.JSON(http.StatusOK, about.NewESLicense(c))
+	})
+	r.GET("/_xpack", func(c *gin.Context) {
+		c.JSON(http.StatusOK, about.NewESXPack(c))
+	})
+	registerIndexApi(r)
+	registerDocumentApi(r)
+	registerSearchApi(r)
 }
