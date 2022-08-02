@@ -137,9 +137,6 @@ func buildFieldMapping(fm *FieldMapping) (*imapping.FieldMapping, error) {
 }
 
 func setDefaultAnalyzerForMapping(mapping *imapping.IndexMappingImpl, analyzer string, config map[string]interface{}) error {
-	var (
-		err error
-	)
 	if mapping == nil {
 		mapping = bleve.NewIndexMapping()
 	}
@@ -147,75 +144,75 @@ func setDefaultAnalyzerForMapping(mapping *imapping.IndexMappingImpl, analyzer s
 	case "default", "standard":
 		mapping.DefaultAnalyzer = "standard"
 		return nil
-	case "jieba":
-		err = mapping.AddCustomTokenizer("gojieba",
-			map[string]interface{}{
-				"dict_path":      "",
-				"hmm_path":       "",
-				"user_dict_path": "",
-				"idf":            "",
-				"stop_words":     "",
-				"type":           "gojieba",
-			},
-		)
-		if err != nil {
-			return err
-		}
-		err = mapping.AddCustomAnalyzer("gojieba",
-			map[string]interface{}{
-				"type":      "gojieba",
-				"tokenizer": "gojieba",
-			},
-		)
-		if err != nil {
-			return err
-		}
-		mapping.DefaultAnalyzer = "gojieba"
-		return nil
-	case "gse":
-		err = mapping.AddCustomTokenizer("gse",
-			map[string]interface{}{
-				"type":       "gse",
-				"dict_path":  "",
-				"stop_words": "",
-				"alpha":      false,
-			},
-		)
-		if err != nil {
-			return err
-		}
-		err = mapping.AddCustomAnalyzer("gse",
-			map[string]interface{}{
-				"type":      "gse",
-				"tokenizer": "gse",
-			},
-		)
-		if err != nil {
-			return err
-		}
-		mapping.DefaultAnalyzer = "gse"
-		return nil
-	case "sego":
-		err = mapping.AddCustomTokenizer("sego",
-			map[string]interface{}{
-				"type":      "sego",
-				"dict_path": "",
-			},
-		)
-		if err != nil {
-			return err
-		}
-		err = mapping.AddCustomAnalyzer("sego",
-			map[string]interface{}{
-				"type":      "sego",
-				"tokenizer": "sego",
-			},
-		)
-		if err != nil {
-			return err
-		}
-		mapping.DefaultAnalyzer = "sego"
-		return nil
+	//case "jieba":
+	//	err = mapping.AddCustomTokenizer("gojieba",
+	//		map[string]interface{}{
+	//			"dict_path":      "",
+	//			"hmm_path":       "",
+	//			"user_dict_path": "",
+	//			"idf":            "",
+	//			"stop_words":     "",
+	//			"type":           "gojieba",
+	//		},
+	//	)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	err = mapping.AddCustomAnalyzer("gojieba",
+	//		map[string]interface{}{
+	//			"type":      "gojieba",
+	//			"tokenizer": "gojieba",
+	//		},
+	//	)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	mapping.DefaultAnalyzer = "gojieba"
+	//	return nil
+	//case "gse":
+	//	err = mapping.AddCustomTokenizer("gse",
+	//		map[string]interface{}{
+	//			"type":       "gse",
+	//			"dict_path":  "",
+	//			"stop_words": "",
+	//			"alpha":      false,
+	//		},
+	//	)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	err = mapping.AddCustomAnalyzer("gse",
+	//		map[string]interface{}{
+	//			"type":      "gse",
+	//			"tokenizer": "gse",
+	//		},
+	//	)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	mapping.DefaultAnalyzer = "gse"
+	//	return nil
+	//case "sego":
+	//	err = mapping.AddCustomTokenizer("sego",
+	//		map[string]interface{}{
+	//			"type":      "sego",
+	//			"dict_path": "",
+	//		},
+	//	)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	err = mapping.AddCustomAnalyzer("sego",
+	//		map[string]interface{}{
+	//			"type":      "sego",
+	//			"tokenizer": "sego",
+	//		},
+	//	)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	mapping.DefaultAnalyzer = "sego"
+	//	return nil
 	default:
 		mapping.DefaultAnalyzer = "standard"
 		return nil
