@@ -13,6 +13,7 @@ var (
 	ErrIndexAlreadyExists     = errors.New("the index already exists")
 	ErrIndexCloneNotSupported = errors.New("the index don't support clone")
 	ErrBulkDataFormat         = errors.New("error bulk data format")
+	ErrIndexClosed            = errors.New("index closed")
 )
 
 //underlying db error.

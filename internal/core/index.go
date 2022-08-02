@@ -24,6 +24,7 @@ type Index struct {
 	Shards         []*IndexShard `json:"shards"`
 	CreateAt       time.Time     `json:"create_at"`
 	UpdateAt       time.Time     `json:"update_at"`
+	closed         bool
 	mu             sync.RWMutex
 }
 
@@ -189,6 +190,7 @@ func (index *Index) Open() error {
 			shard.Indexer = indexer
 		}
 	}
+	index.closed = false
 	engine.addIndex(index)
 	index.mu.Unlock()
 	// update metadata after open
@@ -220,6 +222,7 @@ func (index *Index) Close() error {
 		}
 		shard.Indexer = nil
 	}
+	index.closed = true
 	index.mu.Unlock()
 	return nil
 }
@@ -337,6 +340,13 @@ func (index *Index) UpdateMetadataByShard(n int) {
 	if storageSize > 0 {
 		shard.StorageSize = storageSize
 	}
+}
+
+func (index *Index) IsClosed() bool {
+	index.mu.RLock()
+	b := index.closed
+	index.mu.RUnlock()
+	return b
 }
 
 // returns the index storage dir.

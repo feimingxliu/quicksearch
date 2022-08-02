@@ -11,6 +11,9 @@ import (
 
 // Search performs search in specified index.
 func (index *Index) Search(req *SearchRequest) (*SearchResult, error) {
+	if index.IsClosed() {
+		return nil, errors.ErrIndexClosed
+	}
 	request := &bleve.SearchRequest{
 		Query:            req.Query,
 		Size:             req.Size,

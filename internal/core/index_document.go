@@ -23,6 +23,9 @@ type Document struct {
 
 // IndexOrUpdateDocument indexes or update a document refers to `index`.
 func (index *Index) IndexOrUpdateDocument(docID string, source map[string]interface{}) error {
+	if index.IsClosed() {
+		return errors.ErrIndexClosed
+	}
 	shard := index.getDocShard(docID)
 	doc, err := index.buildBleveDocument(docID, source, nil)
 	if err != nil {
@@ -37,6 +40,9 @@ func (index *Index) IndexOrUpdateDocument(docID string, source map[string]interf
 
 // UpdateDocumentPartially can update part fields of indexed document.
 func (index *Index) UpdateDocumentPartially(docID string, fields map[string]interface{}) error {
+	if index.IsClosed() {
+		return errors.ErrIndexClosed
+	}
 	// check if exists
 	doc, err := index.GetDocument(docID)
 	if err != nil {
@@ -55,6 +61,9 @@ func (index *Index) UpdateDocumentPartially(docID string, fields map[string]inte
 
 // GetDocument returns the doc associated with docID.
 func (index *Index) GetDocument(docID string) (*Document, error) {
+	if index.IsClosed() {
+		return nil, errors.ErrIndexClosed
+	}
 	doc := &Document{
 		Index:       index.Name,
 		ID:          docID,
@@ -84,6 +93,9 @@ func (index *Index) GetDocument(docID string) (*Document, error) {
 
 // DeleteDocument try to delete the document from index, do not check if it exists.
 func (index *Index) DeleteDocument(docID string) error {
+	if index.IsClosed() {
+		return errors.ErrIndexClosed
+	}
 	shard := index.getDocShard(docID)
 	return shard.Indexer.Delete(docID)
 }
